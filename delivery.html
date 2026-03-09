@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SM Delivery">
+<meta name="theme-color" content="#1a6dd4">
+<title>Sultan Mart — Delivery App</title>
+<link rel="manifest" href="delivery-manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Hind:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --primary:#1a6dd4;--green:#22c55e;--red:#ef4444;--orange:#f97316;
+  --bg:#f0f4ff;--card:#fff;--text:#1e293b;--text2:#64748b;--border:#e2e8f0;
+}
+body{font-family:'Hind',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+
+/* LOGIN */
+#loginScreen{
+  position:fixed;inset:0;background:linear-gradient(135deg,#0f172a,#1e3a5f);
+  display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;
+}
+.login-box{background:#fff;border-radius:16px;padding:28px 24px;width:100%;max-width:360px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.login-logo{text-align:center;margin-bottom:20px}
+.login-logo h1{font-family:'Baloo 2',cursive;font-size:22px;color:var(--primary)}
+.login-logo p{font-size:12px;color:var(--text2);margin-top:3px}
+.lfield{margin-bottom:12px}
+.lfield label{font-size:12px;font-weight:600;color:var(--text2);display:block;margin-bottom:5px}
+.lfield input{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:15px;font-family:'Hind',sans-serif;outline:none}
+.lfield input:focus{border-color:var(--primary)}
+.lbtn{width:100%;padding:13px;background:linear-gradient(135deg,#1a6dd4,#0f4fa0);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Baloo 2',cursive}
+.lerr{background:#fee2e2;color:var(--red);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:10px;display:none}
+
+/* HEADER */
+.hdr{
+  background:linear-gradient(135deg,#1a6dd4,#0f4fa0);color:#fff;
+  padding:14px 16px;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:10;
+}
+.hdr-title{font-family:'Baloo 2',cursive;font-size:18px;font-weight:800}
+.hdr-sub{font-size:11px;opacity:.8;margin-top:1px}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.hdr-badge{background:rgba(255,255,255,.2);border-radius:20px;padding:4px 10px;font-size:12px;font-weight:600}
+.logout-btn{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer}
+
+/* TABS */
+.tabs{display:flex;background:#fff;border-bottom:2px solid var(--border);position:sticky;top:58px;z-index:9}
+.tab{flex:1;padding:11px 6px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;color:var(--text2);border-bottom:3px solid transparent;transition:.2s}
+.tab.on{color:var(--primary);border-bottom-color:var(--primary)}
+
+/* CONTENT */
+.content{padding:12px;max-width:480px;margin:0 auto}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px}
+.stat-card{background:var(--card);border-radius:10px;padding:12px 8px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.stat-num{font-family:'Baloo 2',cursive;font-size:22px;font-weight:800}
+.stat-label{font-size:10px;color:var(--text2);margin-top:2px}
+
+/* ORDER CARD */
+.order-card{background:var(--card);border-radius:12px;margin-bottom:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07)}
+.oc-hdr{padding:10px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}
+.oc-id{font-family:'Baloo 2',cursive;font-size:14px;font-weight:800;color:var(--primary)}
+.oc-status{border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700}
+.st-delivery{background:#fff3cd;color:#b45309}
+.st-confirm{background:#dbeafe;color:#1d4ed8}
+.st-delivered{background:#dcfce7;color:#16a34a}
+.oc-body{padding:12px}
+.oc-customer{font-weight:700;font-size:15px;margin-bottom:3px}
+.oc-phone{font-size:13px;color:var(--text2);margin-bottom:6px}
+.oc-address{font-size:12px;color:var(--text2);background:#f8faff;padding:7px 9px;border-radius:6px;margin-bottom:8px;line-height:1.5}
+.oc-items{font-size:12px;color:var(--text);margin-bottom:8px;line-height:1.7}
+.oc-total{display:flex;justify-content:space-between;font-weight:700;font-size:15px;padding:8px 0;border-top:1px dashed var(--border)}
+.oc-payment{font-size:12px;padding:4px 8px;border-radius:5px;font-weight:700;display:inline-block;margin-bottom:8px}
+.pay-cod{background:#fff3cd;color:#b45309}
+.pay-upi{background:#dcfce7;color:#16a34a}
+.oc-actions{display:flex;gap:8px;margin-top:10px}
+.btn-delivered{flex:1;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Baloo 2',cursive}
+.btn-call{background:#f0f4ff;color:var(--primary);border:1.5px solid var(--primary);border-radius:8px;padding:11px 14px;font-size:14px;cursor:pointer}
+.btn-scan{background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:8px;padding:11px 14px;font-size:14px;cursor:pointer}
+
+/* SCANNER MODAL */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:none;align-items:flex-end;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:20px;max-height:90vh;overflow-y:auto}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.modal-hdr h3{font-family:'Baloo 2',cursive;font-size:18px}
+.close-btn{background:#f1f5f9;border:none;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer}
+
+/* QR Reader */
+#qrReader{width:100%;border-radius:10px;overflow:hidden;background:#000;min-height:200px}
+.scan-result{background:#f0fdf4;border:2px solid var(--green);border-radius:10px;padding:14px;margin-top:12px}
+.scan-result h4{color:var(--green);font-family:'Baloo 2',cursive;margin-bottom:8px}
+
+/* EMPTY */
+.empty{text-align:center;padding:40px 20px;color:var(--text2)}
+.empty-ico{font-size:48px;margin-bottom:12px}
+
+/* Toast */
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;z-index:999;display:none;white-space:nowrap}
+.toast.show{display:block}
+
+/* Delivered confirm */
+.confirm-box{background:#f0fdf4;border:2px solid var(--green);border-radius:10px;padding:14px;text-align:center;margin-top:10px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div style="font-size:44px">🛵</div>
+      <h1>Sultan Mart</h1>
+      <p>Delivery Boy App — Bharatganj</p>
+    </div>
+    <div class="lerr" id="loginErr">❌ Galat PIN hai!</div>
+    <div class="lfield">
+      <label>👤 Delivery Boy Naam</label>
+      <input type="text" id="dName" placeholder="Aapka naam">
+    </div>
+    <div class="lfield">
+      <label>🔢 Delivery PIN (Admin se milega)</label>
+      <input type="password" id="dPin" placeholder="4 digit PIN" maxlength="4" inputmode="numeric"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="lbtn" onclick="doLogin()">🚀 Login Karein</button>
+    <div style="margin-top:12px;font-size:11px;color:var(--text2);text-align:center">
+      Default PIN: <strong>4321</strong> — Admin se change karwao
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="hdr" id="appHdr" style="display:none">
+  <div>
+    <div class="hdr-title">🛵 Delivery App</div>
+    <div class="hdr-sub" id="deliveryBoyName">Sultan Mart Bharatganj</div>
+  </div>
+  <div class="hdr-right">
+    <span class="hdr-badge" id="pendingCount">0 Pending</span>
+    <button class="logout-btn" onclick="doLogout()">Logout</button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs" id="appTabs" style="display:none">
+  <div class="tab on" id="tab-pending" onclick="switchTab('pending')">📦 Deliver Karna Hai</div>
+  <div class="tab" id="tab-done" onclick="switchTab('done')">✅ Delivered</div>
+  <div class="tab" id="tab-scan" onclick="openScanner()">📷 Scan QR</div>
+</div>
+
+<!-- CONTENT -->
+<div class="content" id="appContent" style="display:none">
+  <!-- Stats -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="stat-num" id="sPending">0</div><div class="stat-label">Pending</div></div>
+    <div class="stat-card"><div class="stat-num" id="sDelivered" style="color:var(--green)">0</div><div class="stat-label">Delivered</div></div>
+    <div class="stat-card"><div class="stat-num" id="sCOD" style="color:var(--orange)">₹0</div><div class="stat-label">COD Collect</div></div>
+  </div>
+  <div id="ordersList"></div>
+</div>
+
+<!-- SCAN QR MODAL -->
+<div class="modal-overlay" id="scanModal">
+  <div class="modal-sheet">
+    <div class="modal-hdr">
+      <h3>📷 QR Scan Karo</h3>
+      <button class="close-btn" onclick="closeScanner()">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:10px">Customer ka invoice QR scan karo — order details aa jaayenge</div>
+    <div id="qrReader"></div>
+    <div id="scanResult" style="display:none" class="scan-result">
+      <h4>✅ QR Scan Successful!</h4>
+      <div id="scanDetails"></div>
+      <button onclick="markScannedDelivered()" style="width:100%;margin-top:12px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Baloo 2',cursive">
+        ✅ Delivered Confirm Karo
+      </button>
+    </div>
+    <div style="margin-top:12px;background:#f0f4ff;border-radius:8px;padding:10px;font-size:12px;color:var(--text2)">
+      💡 Agar camera nahi khul raha toh neeche Order ID manually type karo:
+    </div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <input type="text" id="manualOrderId" placeholder="SM123456 type karo" style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px">
+      <button onclick="manualConfirm()" style="background:var(--primary);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:700;cursor:pointer">Dhundo</button>
+    </div>
+    <div id="manualResult" style="margin-top:10px"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ===== STATE =====
+let deliveryBoy = null;
+let currentTab = 'pending';
+let scannedOrderId = null;
+let html5QrCode = null;
+
+// ===== LOGIN =====
+function doLogin(){
+  const name = document.getElementById('dName').value.trim();
+  const pin = document.getElementById('dPin').value.trim();
+  if(!name){ showToast('❌ Naam bharo!'); return; }
+  if(!pin){ showToast('❌ PIN bharo!'); return; }
+
+  // Get delivery PIN from settings
+  const s = JSON.parse(localStorage.getItem('sm_settings') || '{}');
+  const correctPin = s.deliveryPin || '4321';
+
+  if(pin !== correctPin){
+    document.getElementById('loginErr').style.display = 'block';
+    return;
+  }
+
+  deliveryBoy = { name, pin };
+  localStorage.setItem('sm_delivery_session', JSON.stringify(deliveryBoy));
+  showApp();
+}
+
+function doLogout(){
+  deliveryBoy = null;
+  localStorage.removeItem('sm_delivery_session');
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('appHdr').style.display = 'none';
+  document.getElementById('appTabs').style.display = 'none';
+  document.getElementById('appContent').style.display = 'none';
+}
+
+function showApp(){
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('appHdr').style.display = 'flex';
+  document.getElementById('appTabs').style.display = 'flex';
+  document.getElementById('appContent').style.display = 'block';
+  document.getElementById('deliveryBoyName').textContent = '👤 ' + deliveryBoy.name;
+  renderOrders();
+}
+
+// Auto login
+(function(){
+  const saved = JSON.parse(localStorage.getItem('sm_delivery_session') || 'null');
+  if(saved){
+    deliveryBoy = saved;
+    showApp();
+  }
+})();
+
+// ===== GET ORDERS =====
+function getAllOrders(){
+  return JSON.parse(localStorage.getItem('sm_all_orders') || '[]');
+}
+
+function saveAllOrders(orders){
+  localStorage.setItem('sm_all_orders', JSON.stringify(orders));
+}
+
+// ===== RENDER =====
+function renderOrders(){
+  const all = getAllOrders();
+  // Show orders assigned to this delivery boy OR all delivery orders
+  const pending = all.filter(o => o.status === 'delivery' && 
+    (!o.assignedTo || o.assignedTo === deliveryBoy.name));
+  const done = all.filter(o => o.status === 'delivered' && 
+    (o.assignedTo === deliveryBoy.name || 
+     (o.statusHistory && o.statusHistory.some(h=>h.by===deliveryBoy.name))));
+
+  // Update stats
+  document.getElementById('sPending').textContent = pending.length;
+  document.getElementById('sDelivered').textContent = done.length;
+  const codAmt = pending.filter(o=>o.payment==='cod').reduce((s,o)=>s+o.total,0);
+  document.getElementById('sCOD').textContent = '₹'+codAmt;
+  document.getElementById('pendingCount').textContent = pending.length + ' Pending';
+
+  const list = document.getElementById('ordersList');
+
+  if(currentTab === 'pending'){
+    if(!pending.length){
+      list.innerHTML = `<div class="empty"><div class="empty-ico">🎉</div><p style="font-size:16px;font-weight:700">Koi pending delivery nahi!</p><p style="margin-top:6px;font-size:13px">Sab deliver ho gaya!</p></div>`;
+      return;
+    }
+    list.innerHTML = pending.map(o => orderCard(o)).join('');
+  } else {
+    if(!done.length){
+      list.innerHTML = `<div class="empty"><div class="empty-ico">📦</div><p>Abhi koi delivery complete nahi hui</p></div>`;
+      return;
+    }
+    list.innerHTML = done.slice(0,20).map(o => orderCard(o, true)).join('');
+  }
+}
+
+function orderCard(o, isDone=false){
+  const payClass = o.payment==='cod' ? 'pay-cod' : 'pay-upi';
+  const payText = o.payment==='cod' ? '💵 COD — ₹'+o.total+' collect karna hai' : '✅ UPI Paid — ₹'+o.total;
+  return `
+  <div class="order-card" id="oc-${o.id}">
+    <div class="oc-hdr">
+      <span class="oc-id">#${o.id}</span>
+      <span class="oc-status ${isDone?'st-delivered':'st-delivery'}">${isDone?'✅ Delivered':'🚚 Deliver Karo'}</span>
+    </div>
+    <div class="oc-body">
+      <div class="oc-customer">👤 ${o.customer?.name || o.addr?.name}</div>
+      <div class="oc-phone">📞 ${o.customer?.phone || o.addr?.phone}</div>
+      <div class="oc-address">📍 ${o.addr?.house}, ${o.addr?.area || ''}, Prayagraj</div>
+      <div class="oc-items">
+        ${o.items.map(it=>`${it.emoji||'📦'} ${it.name} ×${it.qty} — ₹${it.price*it.qty}`).join('<br>')}
+      </div>
+      <span class="oc-payment ${payClass}">${payText}</span>
+      <div class="oc-total"><span>🧾 Total</span><span>₹${o.total}</span></div>
+      ${!isDone ? `
+      <div class="oc-actions">
+        <a href="tel:${o.customer?.phone||o.addr?.phone}" class="btn-call">📞</a>
+        <a href="https://maps.google.com/?q=${encodeURIComponent((o.addr?.house||'')+' '+(o.addr?.area||'')+' Prayagraj')}" target="_blank" class="btn-call">🗺️</a>
+        <button class="btn-delivered" onclick="confirmDelivered('${o.id}')">✅ Delivered Confirm</button>
+      </div>` : `<div style="background:#f0fdf4;border-radius:6px;padding:6px 10px;font-size:11px;color:var(--green);margin-top:6px">✅ Aapne deliver kiya</div>`}
+    </div>
+  </div>`;
+}
+
+// ===== MARK DELIVERED =====
+function confirmDelivered(orderId){
+  if(!confirm('Kya aapne order #'+orderId+' deliver kar diya?')) return;
+  markDelivered(orderId);
+}
+
+function markDelivered(orderId){
+  const all = getAllOrders();
+  const idx = all.findIndex(o=>o.id===orderId);
+  if(idx<0){ showToast('❌ Order nahi mila!'); return; }
+  all[idx].status = 'delivered';
+  if(!all[idx].statusHistory) all[idx].statusHistory=[];
+  all[idx].statusHistory.push({s:'delivered', t:new Date().toLocaleString('hi-IN'), by: deliveryBoy.name});
+  saveAllOrders(all);
+  showToast('🎉 Order #'+orderId+' Delivered!');
+  renderOrders();
+}
+
+// ===== TABS =====
+function switchTab(tab){
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('tab-'+tab)?.classList.add('on');
+  renderOrders();
+}
+
+// ===== QR SCANNER =====
+function openScanner(){
+  document.getElementById('scanModal').classList.add('open');
+  document.getElementById('scanResult').style.display='none';
+  document.getElementById('manualResult').innerHTML='';
+  scannedOrderId = null;
+
+  // Load html5-qrcode dynamically
+  if(!window.Html5Qrcode){
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js';
+    script.onload = startCamera;
+    document.head.appendChild(script);
+  } else {
+    startCamera();
+  }
+}
+
+function startCamera(){
+  try {
+    html5QrCode = new Html5Qrcode("qrReader");
+    html5QrCode.start(
+      {facingMode:"environment"},
+      {fps:10, qrbox:{width:220, height:220}},
+      onQRSuccess,
+      (err)=>{}
+    ).catch(e=>{
+      document.getElementById('qrReader').innerHTML='<div style="padding:20px;text-align:center;color:#fff;font-size:13px">📷 Camera allow karein ya neeche Order ID type karein</div>';
+    });
+  } catch(e){}
+}
+
+function onQRSuccess(text){
+  try {
+    const data = JSON.parse(text);
+    scannedOrderId = data.id;
+    document.getElementById('scanDetails').innerHTML = `
+      <div style="font-size:13px;line-height:1.8">
+        <div>📦 <strong>Order:</strong> #${data.id}</div>
+        <div>👤 <strong>Customer:</strong> ${data.name}</div>
+        <div>📞 <strong>Phone:</strong> ${data.phone}</div>
+        <div>💰 <strong>Total:</strong> ₹${data.total}</div>
+        <div>💳 <strong>Payment:</strong> ${data.payment==='cod'?'💵 COD':'✅ UPI'}</div>
+        <div>📍 <strong>Area:</strong> ${data.area||''}</div>
+      </div>`;
+    document.getElementById('scanResult').style.display='block';
+    // Stop camera
+    if(html5QrCode) html5QrCode.stop().catch(()=>{});
+  } catch(e){
+    showToast('❌ QR sahi nahi hai!');
+  }
+}
+
+function markScannedDelivered(){
+  if(!scannedOrderId) return;
+  markDelivered(scannedOrderId);
+  closeScanner();
+}
+
+function closeScanner(){
+  if(html5QrCode){ html5QrCode.stop().catch(()=>{}); html5QrCode=null; }
+  document.getElementById('scanModal').classList.remove('open');
+  document.getElementById('qrReader').innerHTML='';
+  currentTab='pending';
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('tab-pending').classList.add('on');
+  renderOrders();
+}
+
+// ===== MANUAL ORDER ID =====
+function manualConfirm(){
+  const id = document.getElementById('manualOrderId').value.trim().toUpperCase();
+  if(!id){ showToast('❌ Order ID bharo!'); return; }
+  const all = getAllOrders();
+  const o = all.find(x=>x.id===id);
+  if(!o){ document.getElementById('manualResult').innerHTML='<div style="color:var(--red);font-size:13px;padding:8px">❌ Order '+id+' nahi mila!</div>'; return; }
+  document.getElementById('manualResult').innerHTML=`
+    <div class="scan-result">
+      <h4>✅ Order Mila!</h4>
+      <div style="font-size:13px;line-height:1.8">
+        <div>📦 <strong>#${o.id}</strong> — ${o.customer?.name||o.addr?.name}</div>
+        <div>💰 ₹${o.total} | ${o.payment==='cod'?'💵 COD':'✅ UPI'}</div>
+        <div>📍 ${o.addr?.house}, ${o.addr?.area||''}</div>
+      </div>
+      <button onclick="markDelivered('${o.id}');closeScanner()" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Baloo 2',cursive">
+        ✅ Delivered Confirm Karo
+      </button>
+    </div>`;
+}
+
+// ===== TOAST =====
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2500);
+}
+
+// Auto refresh every 30 sec
+setInterval(()=>{ if(deliveryBoy) renderOrders(); }, 30000);
+</script>
+</body>
+</html>
