@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sultan Mart">
 <meta name="description" content="Bharatganj Prayagraj ki No.1 Grocery Shop">
-<link rel="manifest" href="manifest.json">
+<link rel="manifest" href="data:application/manifest+json,%7B%0A%20%20%22name%22%3A%20%22Sultan%20Mart%20%E2%80%93%20Bharatganj%22%2C%0A%20%20%22short_name%22%3A%20%22Sultan%20Mart%22%2C%0A%20%20%22description%22%3A%20%22Bharatganj%2C%20Prayagraj%20ki%20No.1%20Grocery%20Shop%22%2C%0A%20%20%22start_url%22%3A%20%22./index.html%22%2C%0A%20%20%22display%22%3A%20%22standalone%22%2C%0A%20%20%22background_color%22%3A%20%22%231a6dd4%22%2C%0A%20%20%22theme_color%22%3A%20%22%231a6dd4%22%2C%0A%20%20%22orientation%22%3A%20%22portrait%22%2C%0A%20%20%22icons%22%3A%20%5B%0A%20%20%20%20%7B%22src%22%3A%20%22data%3Aimage/svg%2Bxml%2C%253Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20192%20192%27%253E%253Crect%20width%3D%27192%27%20height%3D%27192%27%20rx%3D%2740%27%20fill%3D%27%25231a6dd4%27/%253E%253Ctext%20x%3D%2750%2525%27%20y%3D%2755%2525%27%20font-size%3D%27110%27%20text-anchor%3D%27middle%27%20dominant-baseline%3D%27middle%27%253E%25F0%259F%259B%2592%253C/text%253E%253C/svg%253E%22%2C%20%22sizes%22%3A%20%22192x192%22%2C%20%22type%22%3A%20%22image/svg%2Bxml%22%2C%20%22purpose%22%3A%20%22any%20maskable%22%7D%2C%0A%20%20%20%20%7B%22src%22%3A%20%22data%3Aimage/svg%2Bxml%2C%253Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20512%20512%27%253E%253Crect%20width%3D%27512%27%20height%3D%27512%27%20rx%3D%27100%27%20fill%3D%27%25231a6dd4%27/%253E%253Ctext%20x%3D%2750%2525%27%20y%3D%2755%2525%27%20font-size%3D%27300%27%20text-anchor%3D%27middle%27%20dominant-baseline%3D%27middle%27%253E%25F0%259F%259B%2592%253C/text%253E%253C/svg%253E%22%2C%20%22sizes%22%3A%20%22512x512%22%2C%20%22type%22%3A%20%22image/svg%2Bxml%22%2C%20%22purpose%22%3A%20%22any%20maskable%22%7D%0A%20%20%5D%2C%0A%20%20%22categories%22%3A%20%5B%22shopping%22%2C%20%22food%22%5D%2C%0A%20%20%22lang%22%3A%20%22hi%22%0A%7D">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%231a6dd4'/><text x='96' y='115' font-size='100' text-anchor='middle' font-family='Arial'>🛒</text></svg>">
 <meta name="apple-mobile-web-app-title" content="Sultan Mart">
 <meta name="application-name" content="Sultan Mart">
@@ -1545,7 +1545,7 @@ function openInv(id){
     <div class="inv-row"><span>Delivery</span><span>${o.delivery===0?'FREE':'₹'+o.delivery}</span></div>
     <div class="inv-row inv-total"><span>TOTAL</span><span>₹${o.total}</span></div>
     <div style="margin-top:12px;font-size:11px;color:var(--text2);text-align:center">Payment: ${o.payment==='upi'?'UPI':o.payment==='cod'?'Cash on Delivery':'Net Banking'}${o.utr?' | UTR: '+o.utr:''}</div>
-    <div style="text-align:center;margin-top:12px;font-size:13px;color:var(--primary);font-weight:700'">🙏 "Aapka vishwas hamari taakat hai!"</div>
+    <div style="text-align:center;margin-top:12px;font-size:13px;color:var(--primary);font-weight:700">🙏 "Aapka vishwas hamari taakat hai!"</div>
     <div style="display:flex;align-items:center;gap:14px;margin-top:14px;padding:10px;background:#f8faff;border-radius:8px;border:1.5px dashed #c8d8f0">
       <div id="invQR" style="width:80px;height:80px;flex-shrink:0"></div>
       <div style="font-size:11px;color:#555;line-height:1.7">
@@ -1553,10 +1553,10 @@ function openInv(id){
         <div><b>Order:</b> #${o.id}</div>
         <div><b>Customer:</b> ${o.addr.name}</div>
         <div><b>Total:</b> \u20b9${o.total}</div>
-        <div><b>Payment:</b> ${o.payment==='cod'?'\ud83d\udcb5 COD':'\u2705 UPI Paid'}</div>
+        <div><b>Payment:</b> ${o.payment==='cod'?'COD':'UPI Paid'}</div>
         <div style="color:#888;font-size:10px;margin-top:3px">Delivery boy scan karega</div>
       </div>
-    </div>\`;
+    </div>`;
   openModal('modal-invoice');
   setTimeout(()=>{
     const qrEl=document.getElementById('invQR');
