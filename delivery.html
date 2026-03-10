@@ -389,13 +389,45 @@ function doLogout(){
   document.getElementById('appContent').style.display = 'none';
 }
 
-function showApp(){
+async function showApp(){
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('appHdr').style.display = 'flex';
   document.getElementById('appTabs').style.display = 'flex';
   document.getElementById('appContent').style.display = 'block';
   document.getElementById('deliveryBoyName').textContent = '👤 ' + deliveryBoy.name;
+  
+  // Login ke turant baad DB se fresh orders fetch karo
+  showToast('⏳ Orders load ho rahe hain...');
+  try{
+    const dbOrders = await getDeliveryOrdersDB();
+    if(dbOrders && dbOrders.length > 0){
+      const mapped = dbOrders.map(o=>{
+        const items = Array.isArray(o.items) ? o.items : [];
+        try{ if(!items.length) items.push(...JSON.parse(o.items||'[]')); }catch(e){}
+        return {
+          id: o.order_number,
+          date: new Date(o.created_at).toLocaleDateString('hi-IN'),
+          items,
+          total: o.total,
+          status: o.status,
+          payment: o.payment_method,
+          assignedTo: (o.assigned_to || '').trim(),
+          assigned_to: (o.assigned_to || '').trim(),
+          customer: {name: o.customer_name||'', phone: o.customer_phone||''},
+          addr: (()=>{ try{ return JSON.parse(o.customer_address); }catch(e){ return {area:'Bharatganj'}; }})()
+        };
+      });
+      localStorage.setItem('sm_all_orders', JSON.stringify(mapped));
+      showToast('✅ Orders load ho gaye!');
+    } else {
+      showToast('📦 Koi assigned order nahi hai abhi');
+    }
+  }catch(e){
+    console.error('Orders load failed:', e);
+  }
+  
   renderOrders();
+  startDeliveryAutoRefresh();
 }
 
 // Auto login
@@ -445,10 +477,12 @@ async function cancelOrderDelivery(orderId){
 function renderOrders(){
   const all = getAllOrders();
   // Show orders assigned to this delivery boy OR all delivery orders
-  const pending = all.filter(o => o.status === 'delivery' && 
-    (!o.assignedTo || 
-     o.assignedTo === deliveryBoy.name || 
-     o.assigned_to === deliveryBoy.name));
+  const myName = (deliveryBoy.name || '').trim().toLowerCase();
+  const pending = all.filter(o => {
+    if(o.status !== 'delivery') return false;
+    const assigned = (o.assignedTo || o.assigned_to || '').trim().toLowerCase();
+    return !assigned || assigned === myName;
+  });
   const done = all.filter(o => o.status === 'delivered' && 
     (o.assignedTo === deliveryBoy.name || 
      (o.statusHistory && o.statusHistory.some(h=>h.by===deliveryBoy.name))));
