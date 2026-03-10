@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sultan Mart">
 <meta name="description" content="Bharatganj Prayagraj ki No.1 Grocery Shop">
-<link rel="manifest" href="data:application/manifest+json,%7B%0A%20%20%22name%22%3A%20%22Sultan%20Mart%20%E2%80%93%20Bharatganj%22%2C%0A%20%20%22short_name%22%3A%20%22Sultan%20Mart%22%2C%0A%20%20%22description%22%3A%20%22Bharatganj%2C%20Prayagraj%20ki%20No.1%20Grocery%20Shop%22%2C%0A%20%20%22start_url%22%3A%20%22./index.html%22%2C%0A%20%20%22display%22%3A%20%22standalone%22%2C%0A%20%20%22background_color%22%3A%20%22%231a6dd4%22%2C%0A%20%20%22theme_color%22%3A%20%22%231a6dd4%22%2C%0A%20%20%22orientation%22%3A%20%22portrait%22%2C%0A%20%20%22icons%22%3A%20%5B%0A%20%20%20%20%7B%22src%22%3A%20%22data%3Aimage/svg%2Bxml%2C%253Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20192%20192%27%253E%253Crect%20width%3D%27192%27%20height%3D%27192%27%20rx%3D%2740%27%20fill%3D%27%25231a6dd4%27/%253E%253Ctext%20x%3D%2750%2525%27%20y%3D%2755%2525%27%20font-size%3D%27110%27%20text-anchor%3D%27middle%27%20dominant-baseline%3D%27middle%27%253E%25F0%259F%259B%2592%253C/text%253E%253C/svg%253E%22%2C%20%22sizes%22%3A%20%22192x192%22%2C%20%22type%22%3A%20%22image/svg%2Bxml%22%2C%20%22purpose%22%3A%20%22any%20maskable%22%7D%2C%0A%20%20%20%20%7B%22src%22%3A%20%22data%3Aimage/svg%2Bxml%2C%253Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20512%20512%27%253E%253Crect%20width%3D%27512%27%20height%3D%27512%27%20rx%3D%27100%27%20fill%3D%27%25231a6dd4%27/%253E%253Ctext%20x%3D%2750%2525%27%20y%3D%2755%2525%27%20font-size%3D%27300%27%20text-anchor%3D%27middle%27%20dominant-baseline%3D%27middle%27%253E%25F0%259F%259B%2592%253C/text%253E%253C/svg%253E%22%2C%20%22sizes%22%3A%20%22512x512%22%2C%20%22type%22%3A%20%22image/svg%2Bxml%22%2C%20%22purpose%22%3A%20%22any%20maskable%22%7D%0A%20%20%5D%2C%0A%20%20%22categories%22%3A%20%5B%22shopping%22%2C%20%22food%22%5D%2C%0A%20%20%22lang%22%3A%20%22hi%22%0A%7D">
+<link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%231a6dd4'/><text x='96' y='115' font-size='100' text-anchor='middle' font-family='Arial'>🛒</text></svg>">
 <meta name="apple-mobile-web-app-title" content="Sultan Mart">
 <meta name="application-name" content="Sultan Mart">
@@ -987,18 +987,6 @@ function getDeliveryReasonFull(){
 }
 
 // ===== PRODUCTS =====
-function getProducts(){
-  try {
-    const saved = localStorage.getItem('sm_products');
-    if(!saved) return DEFAULT_PRODUCTS;
-    const parsed = JSON.parse(saved);
-    // Agar empty array hai to DEFAULT_PRODUCTS use karo
-    if(!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_PRODUCTS;
-    return parsed;
-  } catch(e) {
-    return DEFAULT_PRODUCTS;
-  }
-}
 const DEFAULT_PRODUCTS = [
   {id:1,name:'Aashirvaad Atta 5kg',brand:'Aashirvaad',cat:'atta-chawal',e:'🌾',p:215,m:250,stock:45,unit:'5kg',img:''},
   {id:2,name:'Daawat Basmati Rice 5kg',brand:'Daawat',cat:'atta-chawal',e:'🍚',p:399,m:450,stock:30,unit:'5kg',img:''},
@@ -1037,6 +1025,18 @@ const DEFAULT_PRODUCTS = [
   {id:35,name:'Vim Dishwash 500ml',brand:'Vim',cat:'sabun',e:'🍋',p:88,m:105,stock:35,unit:'500ml',img:''},
 ];
 
+function getProducts(){
+  try {
+    const saved = localStorage.getItem('sm_products');
+    if(!saved) return DEFAULT_PRODUCTS;
+    const parsed = JSON.parse(saved);
+    // Agar empty array hai to DEFAULT_PRODUCTS use karo
+    if(!Array.isArray(parsed) || parsed.length === 0) return DEFAULT_PRODUCTS;
+    return parsed;
+  } catch(e) {
+    return DEFAULT_PRODUCTS;
+  }
+}
 const CATS=[
   {id:'all',name:'Sab Kuch',e:'🏪'},{id:'atta-chawal',name:'Atta-Chawal',e:'🌾'},
   {id:'dal',name:'Dal',e:'🫘'},{id:'tel-ghee',name:'Tel-Ghee',e:'🫙'},
