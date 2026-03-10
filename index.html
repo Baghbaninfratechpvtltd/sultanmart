@@ -1610,9 +1610,16 @@ async function syncOrderStatusFromAdmin(){
     let changed = false;
     dbOrders.forEach(dbO => {
       const idx = orders.findIndex(o => o.id === dbO.order_number);
-      if(idx >= 0 && orders[idx].status !== dbO.status){
-        orders[idx].status = dbO.status;
-        changed = true;
+      if(idx >= 0){
+        if(orders[idx].status !== dbO.status){
+          orders[idx].status = dbO.status;
+          changed = true;
+        }
+        // deliveredAt save karo agar delivered hai
+        if(dbO.status === 'delivered' && !orders[idx].deliveredAt){
+          orders[idx].deliveredAt = dbO.updated_at || new Date().toISOString();
+          changed = true;
+        }
       }
     });
     if(changed){
@@ -1661,8 +1668,10 @@ function renderOrders(){
           ${(o.status==='placed'||o.status==='confirm')?`<button class="btn-sm btn-cancel-sm" onclick="openCR('${o.id}','cancel')">❌ Cancel</button>`:''}
           ${(()=>{
             if(o.status !== 'delivered') return '';
-            const deliveredTime = o.deliveredAt ? new Date(o.deliveredAt) : new Date(o.date);
-            const hoursPassed = (Date.now() - deliveredTime) / (1000 * 60 * 60);
+            // deliveredAt ya updated_at se time lo - jo bhi mile
+            const deliveredTime = o.deliveredAt ? new Date(o.deliveredAt) 
+                                : (o.updated_at ? new Date(o.updated_at) : null);
+            const hoursPassed = deliveredTime ? Math.max(0, (Date.now() - deliveredTime.getTime()) / (1000 * 60 * 60)) : 0;
             if(hoursPassed > 48) return '<span style="font-size:10px;color:#94a3b8">⏰ Replace window closed</span>';
             const hoursLeft = Math.max(0, Math.round(48 - hoursPassed));
             return `<button class="btn-sm btn-replace-sm" onclick="openCR('${o.id}','replace')">🔄 Replace (${hoursLeft}h left)</button>`;
