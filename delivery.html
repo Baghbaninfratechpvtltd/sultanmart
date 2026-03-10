@@ -299,19 +299,59 @@ let scannedOrderId = null;
 let html5QrCode = null;
 
 // ===== LOGIN =====
-function doLogin(){
+async function doLogin(){
   const name = document.getElementById('dName').value.trim();
   const pin = document.getElementById('dPin').value.trim();
   if(!name){ showToast('❌ Naam bharo!'); return; }
   if(!pin){ showToast('❌ PIN bharo!'); return; }
 
-  // Get delivery PIN from settings
-  const s = JSON.parse(localStorage.getItem('sm_settings') || '{}');
-  const correctPin = s.deliveryPin || '4321';
+  document.getElementById('loginErr').style.display = 'none';
+  showToast('⏳ Login ho raha hai...');
 
-  if(pin !== correctPin){
-    document.getElementById('loginErr').style.display = 'block';
-    return;
+  // DB se delivery boys list lo aur verify karo
+  try{
+    const data = await sbFetch('settings?key=eq.delivery_boys');
+    if(data && data.length > 0){
+      let boys = data[0].value;
+      if(typeof boys === 'string') boys = JSON.parse(boys);
+      boys = boys.map(b => typeof b === 'string' ? {name:b, pin:'4321'} : b);
+      
+      // Naam aur PIN dono match karo
+      const found = boys.find(b => 
+        b.name.toLowerCase() === name.toLowerCase() && b.pin === pin
+      );
+      
+      if(!found){
+        document.getElementById('loginErr').textContent = '❌ Naam ya PIN galat hai!';
+        document.getElementById('loginErr').style.display = 'block';
+        return;
+      }
+      
+      deliveryBoy = { name: found.name, pin };
+      localStorage.setItem('sm_delivery_session', JSON.stringify(deliveryBoy));
+      showApp();
+      return;
+    }
+  }catch(e){
+    console.log('DB login failed, trying local:', e);
+  }
+
+  // Fallback: localStorage se try karo
+  const localBoys = JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]');
+  const localBoy = localBoys.find(b => {
+    const bObj = typeof b === 'string' ? {name:b, pin:'4321'} : b;
+    return bObj.name.toLowerCase() === name.toLowerCase() && bObj.pin === pin;
+  });
+  
+  if(!localBoy){
+    // Old system fallback - single PIN
+    const s = JSON.parse(localStorage.getItem('sm_settings') || '{}');
+    const correctPin = s.deliveryPin || '4321';
+    if(pin !== correctPin){
+      document.getElementById('loginErr').textContent = '❌ Naam ya PIN galat hai!';
+      document.getElementById('loginErr').style.display = 'block';
+      return;
+    }
   }
 
   deliveryBoy = { name, pin };
@@ -385,7 +425,9 @@ function renderOrders(){
   const all = getAllOrders();
   // Show orders assigned to this delivery boy OR all delivery orders
   const pending = all.filter(o => o.status === 'delivery' && 
-    (!o.assignedTo || o.assignedTo === deliveryBoy.name));
+    (!o.assignedTo || 
+     o.assignedTo === deliveryBoy.name || 
+     o.assigned_to === deliveryBoy.name));
   const done = all.filter(o => o.status === 'delivered' && 
     (o.assignedTo === deliveryBoy.name || 
      (o.statusHistory && o.statusHistory.some(h=>h.by===deliveryBoy.name))));
