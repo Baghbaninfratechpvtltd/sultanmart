@@ -1137,7 +1137,7 @@ async function initDashboard(){
   updateTime();
   setInterval(updateTime, 1000);
   // Auto refresh orders every 30 seconds
-  setInterval(autoRefreshOrders, 8000); // Orders har 10 second
+  setInterval(autoRefreshOrders, 5000); // Orders har 5 second
   setInterval(updateStats, 15000); // Stats har 15 second
   checkNewOrders();
   // Delivery boys DB se load karo
@@ -1155,16 +1155,17 @@ async function autoRefreshOrders(){
   updateStats();
   renderRecentOrders();
   checkNewOrders();
-  // Agar bulk tracking panel open hai to woh bhi update karo
-  if(document.getElementById('panel-bulktrack') && 
-     document.getElementById('panel-bulktrack').classList.contains('on')){
-    renderBulkTracking();
-  }
-  // Agar orders panel open hai to woh bhi update karo
-  if(document.getElementById('panel-orders') && 
-     document.getElementById('panel-orders').classList.contains('on')){
-    renderOrdersTable();
-  }
+  // Har open panel ko update karo
+  const panels = ['bulktrack','orders','dashboard','analytics'];
+  panels.forEach(p => {
+    const el = document.getElementById('panel-'+p);
+    if(el && el.classList.contains('on')){
+      if(p==='bulktrack') renderBulkTracking();
+      if(p==='orders') renderOrdersTable();
+      if(p==='analytics') renderAnalytics();
+    }
+  });
+  console.log('🔄 Admin refresh:', new Date().toLocaleTimeString(), 'Orders:', ALL_ORDERS.length, 'Delivered:', ALL_ORDERS.filter(o=>o.status==='delivered').length);
 }
 async function updateStats(){
   // DB se fresh data lo
