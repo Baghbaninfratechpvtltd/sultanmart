@@ -1184,7 +1184,7 @@ function renderOrdersTable(){
     </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text2)">Koi order nahi mila</td></tr>';
 }
 
-function updateStatus(id, newStatus){
+async function updateStatus(id, newStatus){
   const idx=ALL_ORDERS.findIndex(o=>o.id===id);
   if(idx<0)return;
   ALL_ORDERS[idx].status=newStatus;
@@ -1192,10 +1192,16 @@ function updateStatus(id, newStatus){
   ALL_ORDERS[idx].statusHistory.push({s:newStatus,t:new Date().toLocaleString('hi-IN')});
   saveAllOrders();
   renderOrdersTable();
-  updateStats();
   checkNewOrders();
   const labels={confirm:'✅ Order Confirm!',delivery:'🚚 Out for Delivery!',delivered:'🎉 Delivered!',cancelled:'❌ Order Cancelled'};
   showToast(labels[newStatus]||'Updated!','success');
+  // DB mein turant save karo - warna auto refresh purana status wapas laayega
+  try{
+    await updateOrderDB(id, {status: newStatus});
+    console.log('✅ Order status DB mein save ho gaya:', id, newStatus);
+  }catch(e){
+    console.log('❌ DB save failed:', e);
+  }
 }
 
 function viewOrder(id){
@@ -2152,7 +2158,7 @@ function verifyPayment(id){
   updateStats();
 }
 
-function rejectPayment(id){
+async function rejectPayment(id){
   ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders') || '[]');
   const idx=ALL_ORDERS.findIndex(o=>o.id===id);
   if(idx<0) return;
@@ -2160,9 +2166,9 @@ function rejectPayment(id){
   if(!ALL_ORDERS[idx].statusHistory) ALL_ORDERS[idx].statusHistory=[];
   ALL_ORDERS[idx].statusHistory.push({s:'payment_rejected',t:new Date().toLocaleString('hi-IN')});
   saveAllOrders();
-  showToast('❌ Payment reject kar diya','error');
-  closeModal('modal-order');
   renderOrdersTable();
+  showToast('❌ Payment reject ho gaya!','error');
+  try{ await updateOrderDB(id, {status: ALL_ORDERS[idx].status, notes: 'payment_rejected'}); }catch(e){}
 }
 
 function saveAllOrders(){localStorage.setItem('sm_all_orders',JSON.stringify(ALL_ORDERS));}
