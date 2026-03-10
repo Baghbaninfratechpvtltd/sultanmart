@@ -968,6 +968,7 @@ function showPanel(p){
     const s=JSON.parse(localStorage.getItem('sm_settings')||'{}');
     if(s.secretPin) document.getElementById('sSecretPin').value=s.secretPin;
     if(s.deliveryPin) document.getElementById('sDeliveryPin').value=s.deliveryPin;
+    renderDeliveryBoys();
   }
   if(p==='logo') loadLogoSettings();
   if(p==='deals') loadDeals();
@@ -1407,6 +1408,42 @@ function removeStaff(id){
 }
 
 // ===== SETTINGS =====
+// ===== DELIVERY BOY MANAGEMENT =====
+function getDeliveryBoyNames(){
+  return JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]');
+}
+function addDeliveryBoy(){
+  const name = document.getElementById('newDeliveryBoyName').value.trim();
+  if(!name){ showToast('❌ Naam daalo!','error'); return; }
+  const boys = getDeliveryBoyNames();
+  if(boys.includes(name)){ showToast('❌ Yeh naam pehle se hai!','error'); return; }
+  boys.push(name);
+  localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
+  document.getElementById('newDeliveryBoyName').value='';
+  renderDeliveryBoys();
+  showToast('✅ '+name+' add ho gaya!','success');
+}
+function removeDeliveryBoy(name){
+  const boys = getDeliveryBoyNames().filter(b=>b!==name);
+  localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
+  renderDeliveryBoys();
+  showToast('🗑️ '+name+' remove ho gaya','success');
+}
+function renderDeliveryBoys(){
+  const boys = getDeliveryBoyNames();
+  const el = document.getElementById('deliveryBoysList');
+  if(!el) return;
+  if(!boys.length){
+    el.innerHTML='<div style="font-size:12px;color:#94a3b8;padding:6px 0">Koi delivery boy nahi — Add karo!</div>';
+    return;
+  }
+  el.innerHTML = boys.map(b=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(249,115,22,.08);border-radius:6px;margin-bottom:4px;font-size:13px">
+      <span>🛵 ${b}</span>
+      <button onclick="removeDeliveryBoy('${b}')" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer">Remove</button>
+    </div>`).join('');
+}
+
 function saveSettings(){
   const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
   const pin = document.getElementById('sSecretPin').value.trim();
@@ -1613,7 +1650,11 @@ function renderBulkTracking(){
   
   // Update delivery boy dropdown
   const boySelect = document.getElementById('btDeliveryBoy');
-  const boys = getDeliveryBoys();
+  // Get from both localStorage names AND existing order assignments
+  const savedBoys = JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]');
+  const orderBoys = getDeliveryBoys();
+  const allBoys = [...new Set([...savedBoys, ...orderBoys])];
+  const boys = allBoys;
   const currentVal = boySelect.value;
   boySelect.innerHTML='<option value="">All Delivery Boys</option>'+boys.map(b=>`<option value="${b}" ${b===currentVal?'selected':''}>${b}</option>`).join('');
 
@@ -1687,7 +1728,7 @@ function renderBulkTracking(){
       <td style="padding:8px 12px">
         <select onchange="assignDeliveryBoy('${o.id}',this.value)" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:var(--card);color:var(--text)">
           <option value="">Assign...</option>
-          ${getDeliveryBoys().map(b=>`<option value="${b}" ${o.assignedTo===b?'selected':''}>${b}</option>`).join('')}
+          ${[...new Set([...JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]'),...getDeliveryBoys()])].map(b=>`<option value="${b}" ${o.assignedTo===b?'selected':''}>${b}</option>`).join('')}
           <option value="__new__">+ Add Boy</option>
         </select>
         ${o.assignedTo?`<div style="font-size:10px;color:var(--green);margin-top:2px">🛵 ${o.assignedTo}</div>`:''}
