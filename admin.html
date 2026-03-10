@@ -2180,26 +2180,57 @@ function renderBulkTracking(){
 }
 
 async function assignDeliveryBoy(orderId, boy){
+  // Empty selection ignore karo
+  if(!boy || boy === '') return;
+  
   let assignName = boy;
   if(boy==='__new__'){
-    assignName = prompt('Delivery boy ka naam?');
-    if(!assignName) return;
+    assignName = prompt('Naya delivery boy ka naam daalo:');
+    if(!assignName || !assignName.trim()) return;
+    assignName = assignName.trim();
+    // Naam save karo list mein
+    const boys = JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]');
+    if(!boys.includes(assignName)){
+      boys.push(assignName);
+      localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
+    }
   }
-  // Pehle UI update karo - fast response
+
+  // Current order status check karo
   ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders')||'[]');
   const idx = ALL_ORDERS.findIndex(o=>o.id===orderId);
-  if(idx>=0){ ALL_ORDERS[idx].assignedTo=assignName; saveAllOrders(); }
-  showToast('⏳ Assign ho raha hai...','success');
+  const currentStatus = idx>=0 ? ALL_ORDERS[idx].status : 'placed';
+  
+  // Agar already delivered ya cancelled hai to sirf assign karo, status mat badlo
+  const keepStatus = ['delivered','cancelled'].includes(currentStatus);
+  const newStatus = keepStatus ? currentStatus : 'delivery';
+
+  // LocalStorage update
+  if(idx>=0){ 
+    ALL_ORDERS[idx].assignedTo = assignName;
+    ALL_ORDERS[idx].status = newStatus;
+    saveAllOrders(); 
+  }
+  
+  showToast('⏳ ' + assignName + ' ko assign ho raha hai...','success');
+  
   // DB mein save karo
+  const dbPayload = { 
+    assigned_to: assignName, 
+    updated_at: new Date().toISOString() 
+  };
+  if(!keepStatus) dbPayload.status = 'delivery';
+  
   const result = await sbFetch(
     'orders?order_number=eq.' + encodeURIComponent(orderId),
     'PATCH',
-    { assigned_to: assignName, status: 'delivery', updated_at: new Date().toISOString() }
+    dbPayload
   );
+  
   if(result !== null){
-    showToast('✅ '+assignName+' ko assign ho gaya! Delivery app mein dikh jaayega.','success');
+    showToast('✅ ' + assignName + ' ko assign ho gaya! Delivery app mein dikh jaayega.','success');
   } else {
-    showToast('⚠️ Local assign hua, DB sync baad mein hoga','success');
+    showToast('⚠️ Local assign hua — internet check karo','error');
   }
   renderBulkTracking();
 }
