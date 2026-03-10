@@ -228,9 +228,10 @@ async function sbFetch(endpoint, method='GET', body=null){
   }
 }
 
-// Delivery: Get assigned orders from DB (exclude delivered and cancelled)
+// Delivery: Get orders assigned to this delivery boy from DB
 async function getDeliveryOrdersDB(){
-  const data = await sbFetch('orders?status=neq.delivered&status=neq.cancelled&order=created_at.desc');
+  // Fetch all delivery status orders
+  const data = await sbFetch('orders?status=eq.delivery&order=created_at.desc');
   return data || [];
 }
 
@@ -270,8 +271,8 @@ function startDeliveryAutoRefresh(){
             status: o.status,
             payment: o.payment_method,
             assignedTo: o.assigned_to || '',
-            customer: {name: o.customer_name, phone: o.customer_phone},
-            addr: o.customer_address ? (()=>{try{return JSON.parse(o.customer_address)}catch(e){return {addr:o.customer_address}}})() : {}
+            customer: {name: o.customer_name || '', phone: o.customer_phone || ''},
+            addr: o.customer_address ? (()=>{try{return JSON.parse(o.customer_address)}catch(e){return {addr:o.customer_address, area:'Bharatganj'}}})() : {}
           };
         });
         // Delivered orders ko preserve karo - sirf non-delivered update karo
