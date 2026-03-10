@@ -1061,6 +1061,7 @@ function toggleSidebar(){
 // ===== PANEL =====
 const panelTitles={dashboard:'📊 Dashboard',orders:'📦 Orders',products:'🛍️ Products',analytics:'📈 Analytics',payment:'💳 Payment & QR Code',staff:'👥 Staff Management',sellers:'🏪 Seller Management',bulktrack:'📊 Bulk Order Tracking',delivery:'🚚 Delivery Area Manager',logo:'🎨 Logo & Branding',deals:'🔥 Deal Strip Manager',settings:'⚙️ Settings'};
 function showPanel(p){
+  sessionStorage.setItem("sm_last_panel", p);
   document.querySelectorAll('.panel').forEach(el=>el.classList.remove('on'));
   document.querySelectorAll('.sitem').forEach(el=>el.classList.remove('on'));
   document.getElementById('panel-'+p).classList.add('on');
@@ -1101,6 +1102,11 @@ async function initDashboard(){
   setInterval(autoRefreshOrders, 10000); // Orders har 10 second
   setInterval(updateStats, 15000); // Stats har 15 second
   checkNewOrders();
+  // Last panel restore karo
+  const lastPanel = sessionStorage.getItem('sm_last_panel');
+  if(lastPanel){
+    try{ showPanel(lastPanel); }catch(e){ showPanel('dashboard'); }
+  }
 }
 
 async function autoRefreshOrders(){
@@ -2162,13 +2168,15 @@ function renderBulkTracking(){
   }).join('');
 }
 
-function assignDeliveryBoy(orderId, boy){
+async function assignDeliveryBoy(orderId, boy){
   if(boy==='__new__'){
     const name=prompt('Delivery boy ka naam?');
     if(!name) return;
     ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders')||'[]');
     const idx=ALL_ORDERS.findIndex(o=>o.id===orderId);
     if(idx>=0){ ALL_ORDERS[idx].assignedTo=name; saveAllOrders(); }
+    // DB mein bhi save karo
+    try{ await updateOrderDB(orderId, {assigned_to: name}); }catch(e){}
     showToast('✅ '+name+' assign kiya!','success');
     setTimeout(renderBulkTracking, 300);
     return;
@@ -2176,7 +2184,10 @@ function assignDeliveryBoy(orderId, boy){
   ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders')||'[]');
   const idx=ALL_ORDERS.findIndex(o=>o.id===orderId);
   if(idx>=0){ ALL_ORDERS[idx].assignedTo=boy; saveAllOrders(); }
-  showToast('✅ Assigned to '+boy,'success');
+  // DB mein bhi save karo
+  try{ await updateOrderDB(orderId, {assigned_to: boy}); }catch(e){}
+  showToast('✅ '+boy+' ko assign ho gaya!','success');
+  setTimeout(renderBulkTracking, 500);
 }
 
 function markDeliveredAdmin(orderId){
@@ -2278,11 +2289,18 @@ function addDeliveryArea(){
   showToast('✅ Naya area add hua!','success');
 }
 
-function saveDeliveryAreas(){
+async function saveDeliveryAreas(){
   const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
   s.deliveryAreas = deliveryAreas;
   localStorage.setItem('sm_settings', JSON.stringify(s));
-  showToast('✅ Delivery areas save ho gayi! App mein update hoga.','success');
+  // Supabase mein save karo - customer site auto update hogi
+  try{
+    await sbFetch('settings?key=eq.shop_settings', 'DELETE');
+    await sbFetch('settings', 'POST', {key:'shop_settings', value:s});
+    showToast('✅ Delivery charge save! Customer site 20 sec mein update hogi.','success');
+  }catch(e){
+    showToast('✅ Delivery areas save ho gayi!','success');
+  }
 }
 
 // ===== LOGO MANAGER =====
