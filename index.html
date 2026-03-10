@@ -1597,31 +1597,40 @@ function getGPS(){
 
 // ===== ORDERS =====
 // ===== SYNC ORDER STATUS FROM ADMIN =====
-function syncOrderStatusFromAdmin(){
+async function syncOrderStatusFromAdmin(){
   if(!currentUser) return;
-  const allOrders = JSON.parse(localStorage.getItem('sm_all_orders') || '[]');
-  let changed = false;
-  orders.forEach((o, i) => {
-    const adminOrder = allOrders.find(a => a.id === o.id);
-    if(adminOrder && adminOrder.status !== o.status){
-      orders[i].status = adminOrder.status;
-      orders[i].statusHistory = adminOrder.statusHistory || o.statusHistory;
-      changed = true;
+  try{
+    // Seedha Supabase DB se fresh status lo
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/orders?customer_id=eq.' + encodeURIComponent(currentUser.id) + '&order=created_at.desc',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    );
+    const dbOrders = await res.json();
+    if(!dbOrders || !dbOrders.length) return;
+    let changed = false;
+    dbOrders.forEach(dbO => {
+      const idx = orders.findIndex(o => o.id === dbO.order_number);
+      if(idx >= 0 && orders[idx].status !== dbO.status){
+        orders[idx].status = dbO.status;
+        changed = true;
+      }
+    });
+    if(changed){
+      localStorage.setItem('sm_orders_'+currentUser.id, JSON.stringify(orders));
+      renderOrders();
     }
-  });
-  if(changed){
-    localStorage.setItem('sm_orders_'+currentUser.id, JSON.stringify(orders));
+  }catch(e){
+    console.log('DB sync failed:', e);
   }
 }
 
 // Auto sync every 15 seconds when on orders page
-setInterval(()=>{
+setInterval(async ()=>{
   if(document.getElementById('page-orders') && 
      document.getElementById('page-orders').style.display !== 'none'){
-    syncOrderStatusFromAdmin();
-    renderOrders();
+    await syncOrderStatusFromAdmin();
   }
-}, 15000);
+}, 8000);
 
 function renderOrders(){
   if(!currentUser){document.getElementById('ordersContent').innerHTML=`<div class="empty-cart"><div class="empty-ico">📦</div><p>Login karein orders dekhne ke liye</p><button onclick="showPage('account')" style="margin-top:14px;background:var(--primary);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-weight:700">Login Karein</button></div>`;return;}
