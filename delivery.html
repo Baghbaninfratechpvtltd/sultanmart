@@ -238,15 +238,28 @@ async function getDeliveryOrdersDB(){
 // Delivery: Update order status
 async function updateDeliveryOrderDB(orderNumber, status){
   try{
-    const result = await sbFetch(
-      'orders?order_number=eq.' + encodeURIComponent(orderNumber), 
-      'PATCH', 
-      { status: status, updated_at: new Date().toISOString() }
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/orders?order_number=eq.' + encodeURIComponent(orderNumber),
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ status: status, updated_at: new Date().toISOString() })
+      }
     );
-    console.log('DB update result:', result);
+    if(!res.ok){
+      const err = await res.text();
+      console.error('DB update failed:', res.status, err);
+      return false;
+    }
+    console.log('✅ DB updated:', orderNumber, '->', status);
     return true;
   }catch(e){
-    console.error('updateDeliveryOrderDB failed:', e);
+    console.error('updateDeliveryOrderDB error:', e);
     return false;
   }
 }
@@ -305,58 +318,66 @@ async function doLogin(){
   if(!name){ showToast('❌ Naam bharo!'); return; }
   if(!pin){ showToast('❌ PIN bharo!'); return; }
 
-  document.getElementById('loginErr').style.display = 'none';
+  const errEl = document.getElementById('loginErr');
+  errEl.style.display = 'none';
   showToast('⏳ Login ho raha hai...');
 
-  // DB se delivery boys list lo
-  const data = await sbFetch('settings?key=eq.delivery_boys');
-  console.log('DB response:', data);
-  
-  if(data && data.length > 0){
-    let boys = data[0].value;
-    // JSONB se aane wala value already parsed hota hai
-    if(typeof boys === 'string') boys = JSON.parse(boys);
-    if(!Array.isArray(boys)) boys = [];
-    boys = boys.map(b => typeof b === 'string' ? {name:b, pin:'4321'} : b);
-    console.log('Boys list:', boys);
-    console.log('Trying login:', name, pin);
-    
-    const found = boys.find(b => 
-      b.name.trim().toLowerCase() === name.toLowerCase() && 
-      String(b.pin).trim() === String(pin).trim()
-    );
-    
-    if(found){
-      deliveryBoy = { name: found.name, pin };
-      localStorage.setItem('sm_delivery_boys', JSON.stringify(boys)); // cache
-      localStorage.setItem('sm_delivery_session', JSON.stringify(deliveryBoy));
-      showApp();
-      return;
-    } else {
-      document.getElementById('loginErr').textContent = '❌ Naam ya PIN galat hai! Admin se check karo.';
-      document.getElementById('loginErr').style.display = 'block';
+  try{
+    // Direct Supabase call - no wrapper
+    const res = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.delivery_boys', {
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY
+      }
+    });
+    const data = await res.json();
+    console.log('Login DB data:', JSON.stringify(data));
+
+    if(data && data.length > 0){
+      let boys = data[0].value;
+      if(typeof boys === 'string') boys = JSON.parse(boys);
+      if(!Array.isArray(boys)) boys = [];
+      // Normalize format
+      boys = boys.map(b => typeof b === 'string' ? {name:b, pin:'4321'} : b);
+      console.log('Boys:', boys, 'Trying:', name, pin);
+
+      const found = boys.find(b =>
+        b.name.trim().toLowerCase() === name.trim().toLowerCase() &&
+        String(b.pin).trim() === String(pin).trim()
+      );
+
+      if(found){
+        deliveryBoy = {name: found.name, pin};
+        localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
+        localStorage.setItem('sm_delivery_session', JSON.stringify(deliveryBoy));
+        showApp();
+        return;
+      }
+
+      errEl.textContent = '❌ Naam ya PIN galat hai! Admin se check karo.';
+      errEl.style.display = 'block';
       return;
     }
+  }catch(e){
+    console.error('Login error:', e);
   }
-  
-  // DB se data nahi aaya - localStorage fallback
+
+  // Fallback: localStorage se
   const localBoys = JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]')
     .map(b => typeof b === 'string' ? {name:b, pin:'4321'} : b);
-  
-  const localFound = localBoys.find(b => 
-    b.name.trim().toLowerCase() === name.toLowerCase() && 
+  const found = localBoys.find(b =>
+    b.name.trim().toLowerCase() === name.trim().toLowerCase() &&
     String(b.pin).trim() === String(pin).trim()
   );
-  
-  if(localFound){
-    deliveryBoy = { name: localFound.name, pin };
+  if(found){
+    deliveryBoy = {name: found.name, pin};
     localStorage.setItem('sm_delivery_session', JSON.stringify(deliveryBoy));
     showApp();
     return;
   }
 
-  document.getElementById('loginErr').textContent = '❌ Login fail — Internet check karo ya Admin se PIN lो';
-  document.getElementById('loginErr').style.display = 'block';
+  errEl.textContent = '❌ Naam ya PIN galat nahi mila. Admin se dobara add karwao.';
+  errEl.style.display = 'block';
 }
 
 function doLogout(){
@@ -492,27 +513,29 @@ function confirmDelivered(orderId){
 }
 
 async function markDelivered(orderId){
-  showToast('⏳ Update ho raha hai...');
-  // DB mein seedha update karo - yahi sahi tarika hai
-  try{
-    await updateDeliveryOrderDB(orderId, 'delivered');
-    console.log('✅ DB updated:', orderId);
-  }catch(e){
-    console.log('DB update failed:', e);
-  }
-  // LocalStorage mein bhi update karo
+  showToast('⏳ Deliver mark ho raha hai...');
+  
+  // 1. DB mein update karo - SABSE PEHLE
+  const dbOk = await updateDeliveryOrderDB(orderId, 'delivered');
+  
+  // 2. LocalStorage mein bhi update karo
   const all = getAllOrders();
   const idx = all.findIndex(o=>o.id===orderId);
   if(idx>=0){
     all[idx].status = 'delivered';
-    saveAllOrders(all);
+    all[idx].deliveredAt = new Date().toISOString();
+    all[idx].deliveredBy = deliveryBoy ? deliveryBoy.name : '';
   } else {
-    // Order localStorage mein nahi hai - DB se aaya tha
-    // Directly add as delivered
-    all.push({id:orderId, status:'delivered'});
-    saveAllOrders(all);
+    all.push({id:orderId, status:'delivered', deliveredBy: deliveryBoy ? deliveryBoy.name : ''});
   }
-  showToast('🎉 Order #'+orderId+' Delivered!');
+  saveAllOrders(all);
+  
+  // 3. Show result
+  if(dbOk){
+    showToast('🎉 Order #'+orderId+' Delivered! Admin aur Customer ko pata chal gaya!');
+  } else {
+    showToast('⚠️ Locally delivered hua — DB update fail hua. Internet check karo!');
+  }
   renderOrders();
 }
 
