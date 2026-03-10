@@ -338,6 +338,31 @@ function saveAllOrders(orders){
 }
 
 // ===== RENDER =====
+
+// ===== CANCEL ORDER =====
+async function cancelOrderDelivery(orderId){
+  if(!confirm('Kya aap order #'+orderId+' cancel karna chahte hain?\nAdmin ko bhi pata chalega.')) return;
+  showToast('⏳ Cancel ho raha hai...');
+  // DB mein update karo
+  try{
+    await updateDeliveryOrderDB(orderId, 'cancelled');
+    console.log('✅ Order cancelled in DB:', orderId);
+  }catch(e){
+    console.log('DB cancel failed:', e);
+  }
+  // LocalStorage mein bhi update karo
+  const all = getAllOrders();
+  const idx = all.findIndex(o=>o.id===orderId);
+  if(idx>=0){
+    all[idx].status = 'cancelled';
+    if(!all[idx].statusHistory) all[idx].statusHistory=[];
+    all[idx].statusHistory.push({s:'cancelled', t:new Date().toLocaleString('hi-IN'), by: deliveryBoy.name});
+    saveAllOrders(all);
+  }
+  showToast('❌ Order #'+orderId+' Cancel ho gaya! Admin ko update mil gaya.');
+  renderOrders();
+}
+
 function renderOrders(){
   const all = getAllOrders();
   // Show orders assigned to this delivery boy OR all delivery orders
@@ -393,7 +418,8 @@ function orderCard(o, isDone=false){
       <div class="oc-actions">
         <a href="tel:${o.customer?.phone||o.addr?.phone}" class="btn-call">📞</a>
         <a href="https://maps.google.com/?q=${encodeURIComponent((o.addr?.house||'')+' '+(o.addr?.area||'')+' Prayagraj')}" target="_blank" class="btn-call">🗺️</a>
-        <button class="btn-delivered" onclick="confirmDelivered('${o.id}')">✅ Delivered Confirm</button>
+        <button class="btn-delivered" onclick="confirmDelivered('${o.id}')">✅ Delivered</button>
+        <button onclick="cancelOrderDelivery('${o.id}')" style="flex:1;padding:10px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">❌ Cancel</button>
       </div>` : `<div style="background:#f0fdf4;border-radius:6px;padding:6px 10px;font-size:11px;color:var(--green);margin-top:6px">✅ Aapne deliver kiya</div>`}
     </div>
   </div>`;
