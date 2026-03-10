@@ -294,10 +294,12 @@ function startDeliveryAutoRefresh(){
           const localOrder = existing.find(e => e.id === dbOrder.id);
           // Agar locally delivered mark hai toh wahi rakho
           if(localOrder && localOrder.status === 'delivered') return localOrder;
+          // Agar locally cancelled mark hai toh wahi rakho
+          if(localOrder && localOrder.status === 'cancelled') return localOrder;
           return dbOrder;
         });
+        // LocalStorage mein sirf pending wale add karo jo DB mein delivery hain
         localStorage.setItem('sm_all_orders', JSON.stringify(merged));
-        // Re-render if on orders view
         if(typeof renderOrders === 'function') renderOrders();
       }
     }catch(e){}
@@ -549,10 +551,11 @@ function confirmDelivered(orderId){
 async function markDelivered(orderId){
   showToast('⏳ Deliver mark ho raha hai...');
   
-  // 1. DB mein update karo - SABSE PEHLE
-  const dbOk = await updateDeliveryOrderDB(orderId, 'delivered');
+  // 1. DOM se TURANT remove karo - pending se hatao
+  const card = document.getElementById('oc-'+orderId);
+  if(card) card.remove();
   
-  // 2. LocalStorage mein bhi update karo
+  // 2. LocalStorage mein update karo
   const all = getAllOrders();
   const idx = all.findIndex(o=>o.id===orderId);
   if(idx>=0){
@@ -560,17 +563,24 @@ async function markDelivered(orderId){
     all[idx].deliveredAt = new Date().toISOString();
     all[idx].deliveredBy = deliveryBoy ? deliveryBoy.name : '';
   } else {
-    all.push({id:orderId, status:'delivered', deliveredBy: deliveryBoy ? deliveryBoy.name : ''});
+    all.push({id:orderId, status:'delivered', deliveredAt: new Date().toISOString(), deliveredBy: deliveryBoy ? deliveryBoy.name : ''});
   }
   saveAllOrders(all);
   
-  // 3. Show result
-  if(dbOk){
-    showToast('🎉 Order #'+orderId+' Delivered! Admin aur Customer ko pata chal gaya!');
-  } else {
-    showToast('⚠️ Locally delivered hua — DB update fail hua. Internet check karo!');
-  }
+  // 3. Stats update karo
   renderOrders();
+  
+  // 4. DB mein update karo background mein
+  const dbOk = await updateDeliveryOrderDB(orderId, 'delivered');
+  if(dbOk){
+    showToast('🎉 Order #'+orderId+' Delivered! Admin aur Customer ko update ho gaya!');
+  } else {
+    showToast('⚠️ Order locally delivered — internet check karo, DB sync ho jaayega');
+    // Retry once after 3 sec
+    setTimeout(async ()=>{
+      await updateDeliveryOrderDB(orderId, 'delivered');
+    }, 3000);
+  }
 }
 
 // ===== TABS =====
