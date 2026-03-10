@@ -855,17 +855,31 @@ let DB_SETTINGS = {};
 let dbReady = false;
 
 async function initDB(){
+  // Pehle default products dikha do - user ko wait na karna pade
+  DB_PRODUCTS = DEFAULT_PRODUCTS;
+  dbReady = true;
+  renderCategories();
+  filterCat('all');
+
+  // Background mein DB se load karo
   try{
-    DB_PRODUCTS = await getProductsFromDB();
-    if(DB_PRODUCTS.length === 0){
-      // First time - seed default products
+    const dbProds = await getProductsFromDB();
+    if(dbProds && dbProds.length > 0){
+      DB_PRODUCTS = dbProds;
+      dbReady = true;
+      console.log('✅ DB Products loaded:', DB_PRODUCTS.length);
+    } else {
+      // First time - seed karo
       await seedDefaultProducts();
-      DB_PRODUCTS = await getProductsFromDB();
+      const seeded = await getProductsFromDB();
+      if(seeded && seeded.length > 0) DB_PRODUCTS = seeded;
     }
-    dbReady = true;
-    console.log('✅ Supabase connected! Products:', DB_PRODUCTS.length);
+    // Quietly update UI with DB products
+    renderCategories();
+    const activeCat = document.querySelector('.cat-btn.active');
+    filterCat(activeCat ? (activeCat.dataset.cat || 'all') : 'all');
   } catch(e){
-    console.error('DB init failed:', e);
+    console.log('DB load failed, using defaults:', e);
     dbReady = false;
   }
 }
@@ -1990,15 +2004,12 @@ if(saved){currentUser=JSON.parse(saved);orders=JSON.parse(localStorage.getItem('
 })();
 
 // Initialize Supabase DB
-initDB().then(()=>{
-  renderCategories();
-  filterCat('all');
-  initBanner();
-}).catch(()=>{
-  renderCategories();
-  filterCat('all');
-  initBanner();
-});
+// Turant products dikha do
+renderCategories();
+filterCat('all');
+initBanner();
+// Background mein DB connect karo
+initDB();
 initSearch();
 updateCartBadge();
 
