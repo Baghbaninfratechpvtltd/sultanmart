@@ -873,15 +873,26 @@ async function sbFetch(endpoint, method='GET', body=null, extraHeaders={}){
     'apikey': SUPABASE_KEY,
     'Authorization': 'Bearer ' + SUPABASE_KEY,
     'Content-Type': 'application/json',
-    'Prefer': method==='POST' ? 'return=representation' : (method==='PATCH'?'return=minimal':''),
     ...extraHeaders
   };
+  if(method==='PATCH') headers['Prefer'] = 'return=minimal';
+  if(method==='POST') headers['Prefer'] = 'return=representation';
+  if(method==='DELETE') headers['Prefer'] = 'return=minimal';
   const opts = {method, headers};
   if(body) opts.body = JSON.stringify(body);
-  const res = await fetch(SUPABASE_URL + '/rest/v1/' + endpoint, opts);
-  if(!res.ok) return null;
-  const text = await res.text();
-  return text ? JSON.parse(text) : [];
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/' + endpoint, opts);
+    if(!res.ok){
+      const errText = await res.text();
+      console.error('Supabase error:', res.status, errText);
+      return null;
+    }
+    const text = await res.text();
+    return text ? JSON.parse(text) : true;
+  }catch(e){
+    console.error('sbFetch error:', e);
+    return null;
+  }
 }
 
 // Admin: Get all orders from DB
@@ -1099,7 +1110,7 @@ async function initDashboard(){
   updateTime();
   setInterval(updateTime, 1000);
   // Auto refresh orders every 30 seconds
-  setInterval(autoRefreshOrders, 10000); // Orders har 10 second
+  setInterval(autoRefreshOrders, 8000); // Orders har 10 second
   setInterval(updateStats, 15000); // Stats har 15 second
   checkNewOrders();
   // Last panel restore karo
@@ -2169,25 +2180,28 @@ function renderBulkTracking(){
 }
 
 async function assignDeliveryBoy(orderId, boy){
+  let assignName = boy;
   if(boy==='__new__'){
-    const name=prompt('Delivery boy ka naam?');
-    if(!name) return;
-    ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders')||'[]');
-    const idx=ALL_ORDERS.findIndex(o=>o.id===orderId);
-    if(idx>=0){ ALL_ORDERS[idx].assignedTo=name; saveAllOrders(); }
-    // DB mein bhi save karo
-    try{ await updateOrderDB(orderId, {assigned_to: name}); }catch(e){}
-    showToast('✅ '+name+' assign kiya!','success');
-    setTimeout(renderBulkTracking, 300);
-    return;
+    assignName = prompt('Delivery boy ka naam?');
+    if(!assignName) return;
   }
+  // Pehle UI update karo - fast response
   ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders')||'[]');
-  const idx=ALL_ORDERS.findIndex(o=>o.id===orderId);
-  if(idx>=0){ ALL_ORDERS[idx].assignedTo=boy; saveAllOrders(); }
-  // DB mein bhi save karo
-  try{ await updateOrderDB(orderId, {assigned_to: boy}); }catch(e){}
-  showToast('✅ '+boy+' ko assign ho gaya!','success');
-  setTimeout(renderBulkTracking, 500);
+  const idx = ALL_ORDERS.findIndex(o=>o.id===orderId);
+  if(idx>=0){ ALL_ORDERS[idx].assignedTo=assignName; saveAllOrders(); }
+  showToast('⏳ Assign ho raha hai...','success');
+  // DB mein save karo
+  const result = await sbFetch(
+    'orders?order_number=eq.' + encodeURIComponent(orderId),
+    'PATCH',
+    { assigned_to: assignName, status: 'delivery', updated_at: new Date().toISOString() }
+  );
+  if(result !== null){
+    showToast('✅ '+assignName+' ko assign ho gaya! Delivery app mein dikh jaayega.','success');
+  } else {
+    showToast('⚠️ Local assign hua, DB sync baad mein hoga','success');
+  }
+  renderBulkTracking();
 }
 
 function markDeliveredAdmin(orderId){
