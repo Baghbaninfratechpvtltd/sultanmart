@@ -738,7 +738,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="modal" style="max-width:640px">
     <div class="modal-hdr">
       <h3 id="orderDetailTitle">📦 Order Detail</h3>
-      <button class="mclose" onclick="closeModal('modal-order')">✕</button>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="printInvoice()" style="background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer">🖨️ Invoice</button>
+        <button class="mclose" onclick="closeModal('modal-order')">✕</button>
+      </div>
     </div>
     <div class="modal-body" id="orderDetailBody"></div>
   </div>
@@ -1204,6 +1207,105 @@ async function updateStatus(id, newStatus){
   }
 }
 
+
+// ===== PRINT INVOICE =====
+let currentViewOrderId = null;
+
+function printInvoice(){
+  if(!currentViewOrderId) return;
+  const o = ALL_ORDERS.find(x=>x.id===currentViewOrderId);
+  if(!o) return;
+  const items = o.items || [];
+  const subtotal = items.reduce((s,i)=>s+(i.price||i.p||0)*(i.qty||1),0);
+  const delivery = o.delivery || o.deliveryCharge || 0;
+  const total = o.total || subtotal + delivery;
+  const date = o.date || new Date().toLocaleDateString('hi-IN');
+  const time = o.time || '';
+  const addr = o.addr || o.address || {};
+  const customer = o.customer || {};
+
+  const invoiceHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Invoice - ${o.id}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #000; padding: 20px; max-width: 400px; margin: 0 auto; }
+  .hdr { text-align:center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 10px; }
+  .hdr h1 { font-size: 22px; font-weight: bold; }
+  .hdr p { font-size: 11px; color: #444; margin-top: 2px; }
+  .info { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 12px; }
+  .customer-box { background: #f5f5f5; padding: 8px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  th { background: #222; color: #fff; padding: 6px 8px; font-size: 12px; text-align: left; }
+  td { padding: 5px 8px; border-bottom: 1px solid #eee; font-size: 12px; }
+  .text-right { text-align: right; }
+  .total-row { font-weight: bold; background: #f9f9f9; }
+  .grand-total { font-size: 16px; font-weight: bold; text-align: right; border-top: 2px solid #000; padding-top: 8px; margin-top: 4px; }
+  .footer { text-align: center; margin-top: 16px; font-size: 11px; color: #666; border-top: 1px dashed #ccc; padding-top: 10px; }
+  .status-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold; background:#d1fae5; color:#065f46; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>🛒 Sultan Mart</h1>
+  <p>Bharatganj, Prayagraj - 212104</p>
+  <p>📞 9559868648 | UPI: 9559868648@ptyes</p>
+</div>
+<div class="info">
+  <div><strong>Invoice:</strong> INV-${o.id}</div>
+  <div><strong>Date:</strong> ${date} ${time}</div>
+</div>
+<div class="customer-box">
+  <strong>Customer:</strong> ${customer.name || o.customerName || '-'}<br>
+  <strong>Phone:</strong> ${customer.phone || o.customerPhone || '-'}<br>
+  <strong>Address:</strong> ${addr.house||''} ${addr.area||addr.areaName||''}<br>
+  <strong>Payment:</strong> ${o.payment==='cod'?'💵 Cash on Delivery':'✅ UPI/Online'} &nbsp;
+  <span class="status-badge">${o.status||'placed'}</span>
+</div>
+<table>
+  <tr>
+    <th>#</th>
+    <th>Item</th>
+    <th class="text-right">Qty</th>
+    <th class="text-right">Price</th>
+    <th class="text-right">Amount</th>
+  </tr>
+  ${items.map((item,i)=>`
+  <tr>
+    <td>${i+1}</td>
+    <td>${item.emoji||item.e||''} ${item.name}</td>
+    <td class="text-right">${item.qty||1} ${item.unit||''}</td>
+    <td class="text-right">₹${item.price||item.p||0}</td>
+    <td class="text-right">₹${(item.price||item.p||0)*(item.qty||1)}</td>
+  </tr>`).join('')}
+  <tr class="total-row">
+    <td colspan="4" class="text-right">Subtotal:</td>
+    <td class="text-right">₹${subtotal}</td>
+  </tr>
+  <tr>
+    <td colspan="4" class="text-right">Delivery:</td>
+    <td class="text-right">${delivery===0?'<span style="color:green">FREE</span>':'₹'+delivery}</td>
+  </tr>
+</table>
+<div class="grand-total">Total: ₹${total}</div>
+<div class="footer">
+  <p>Thank you for shopping at Sultan Mart! 🙏</p>
+  <p>Dobara aayein — Ghar Ka Ration, Ab Aur Sasta!</p>
+</div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=450,height=700');
+  win.document.write(invoiceHTML);
+  win.document.close();
+  win.focus();
+  setTimeout(()=>win.print(), 500);
+}
+
 function viewOrder(id){
   const o=ALL_ORDERS.find(x=>x.id===id);
   if(!o)return;
@@ -1283,6 +1385,7 @@ function viewOrder(id){
       ${o.status==='delivery'?`<button class="btn btn-deliver" onclick="updateStatus('${o.id}','delivered');closeModal('modal-order')">📬 Mark Delivered</button>`:''}
       ${(o.status==='placed'||o.status==='confirm')?`<button class="btn btn-cancel" onclick="updateStatus('${o.id}','cancelled');closeModal('modal-order')">❌ Cancel Karo</button>`:''}
     </div>`:''}`;
+  currentViewOrderId = id;
   openModal('modal-order');
 }
 
