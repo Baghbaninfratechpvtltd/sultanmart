@@ -1848,14 +1848,31 @@ function getDeliveryBoyNames(){
   return JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]');
 }
 
+async function saveDeliveryBoystoDB(boys){
+  try{
+    // UPSERT - agar exist kare to update, nahi to insert
+    const res = await sbFetch('settings', 'POST', 
+      {key:'delivery_boys', value: boys},
+      {'Prefer':'resolution=merge-duplicates,return=minimal', 'Content-Type':'application/json'}
+    );
+    console.log('✅ Boys saved to DB:', boys);
+    return true;
+  }catch(e){
+    console.error('Boys save to DB failed:', e);
+    return false;
+  }
+}
+
 async function loadDeliveryBoysFromDB(){
   try{
     const data = await sbFetch('settings?key=eq.delivery_boys');
     if(data && data.length>0){
-      const boys = JSON.parse(data[0].value || '[]');
+      let boys = data[0].value;
+      if(typeof boys === 'string') boys = JSON.parse(boys);
+      if(!Array.isArray(boys)) boys = [];
       localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
       renderDeliveryBoys();
-      console.log('✅ Delivery boys loaded from DB:', boys);
+      console.log('✅ Delivery boys DB se loaded:', boys);
     }
   }catch(e){
     console.log('DB boys load failed:', e);
@@ -1870,26 +1887,23 @@ async function addDeliveryBoy(){
   localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
   document.getElementById('newDeliveryBoyName').value='';
   renderDeliveryBoys();
-  // Supabase mein save karo - refresh ke baad bhi rahe
-  try{
-    await sbFetch('settings?key=eq.delivery_boys', 'DELETE');
-    await sbFetch('settings', 'POST', {key:'delivery_boys', value: JSON.stringify(boys)});
-    showToast('✅ '+name+' add ho gaya! Save bhi ho gaya.','success');
-  }catch(e){
-    showToast('✅ '+name+' add hua (DB sync baad mein)','success');
+  showToast('⏳ Save ho raha hai...','success');
+  const ok = await saveDeliveryBoystoDB(boys);
+  if(ok){
+    showToast('✅ '+name+' add aur save ho gaya! Refresh ke baad bhi rahega.','success');
+  } else {
+    showToast('⚠️ '+name+' add hua lekin DB save nahi hua — internet check karo','error');
   }
 }
 async function removeDeliveryBoy(name){
   const boys = getDeliveryBoyNames().filter(b=>b!==name);
   localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
   renderDeliveryBoys();
-  // Supabase mein bhi update karo
-  try{
-    await sbFetch('settings?key=eq.delivery_boys', 'DELETE');
-    await sbFetch('settings', 'POST', {key:'delivery_boys', value: JSON.stringify(boys)});
-    showToast('🗑️ '+name+' remove ho gaya!','success');
-  }catch(e){
-    showToast('🗑️ '+name+' remove hua (DB sync baad mein)','success');
+  const ok = await saveDeliveryBoystoDB(boys);
+  if(ok){
+    showToast('🗑️ '+name+' remove aur DB se bhi delete ho gaya!','success');
+  } else {
+    showToast('🗑️ '+name+' remove hua (DB sync nahi hua)','error');
   }
 }
 function renderDeliveryBoys(){
