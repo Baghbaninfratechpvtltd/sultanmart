@@ -1479,10 +1479,8 @@ function genChkQR(){
   // Always regenerate fresh with correct amount
   div.innerHTML='';
   // Get current cart total
-  const PRODS=getProducts();
-  const sub=Object.keys(cart).reduce((s,id)=>s+(PRODS.find(p=>p.id==id)?.p||0)*cart[id],0);
-  const del=sub>=300?0:20;
-  const total=sub+del;
+  // Use same total as checkout - with correct delivery charge
+  const total = getCartTotal();
   // UPI deep link with amount pre-filled
   const upiLink=`upi://pay?pa=9559868648@ptyes&pn=Sultan%20Mart%20Bharatganj&am=${total}&cu=INR&tn=SultanMart%20Order`;
   try{
@@ -2051,6 +2049,35 @@ setInterval(async ()=>{
     }
   }catch(e){}
 }, 15000);
+
+// Settings/Deals har 20 second mein refresh (admin ne kuch change kiya ho to)
+setInterval(async ()=>{
+  try{
+    const settingRes = await sbFetch('settings?key=eq.shop_settings');
+    if(settingRes && settingRes[0]){
+      const s = settingRes[0].value;
+      localStorage.setItem('sm_settings', JSON.stringify(s));
+      // Deal strip update karo
+      if(s.dealItems && s.dealItems.length){
+        const txt = s.dealItems.filter(d=>d.active).map(d=>d.text).join(' | ');
+        const doubled = txt + ' &nbsp;&nbsp;&nbsp; ' + txt;
+        const dealEl = document.getElementById('dealStrip');
+        if(dealEl) dealEl.innerHTML = doubled;
+      }
+      // Shop name/logo update
+      if(s.shopName){
+        const logoEl = document.getElementById('logoName');
+        if(logoEl){
+          if(s.logoImage){
+            logoEl.innerHTML = '<img src="'+s.logoImage+'" style="height:36px;width:36px;object-fit:cover;border-radius:8px;vertical-align:middle;margin-right:6px">'+s.shopName;
+          } else {
+            logoEl.textContent = (s.logoEmoji||'🛒') + ' ' + s.shopName;
+          }
+        }
+      }
+    }
+  }catch(e){}
+}, 20000);
 </script>
 </div><!-- /app-container -->
 </div><!-- /desk-main -->
