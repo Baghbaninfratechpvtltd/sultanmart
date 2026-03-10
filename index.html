@@ -771,6 +771,135 @@ img{object-fit:cover}
 <div class="toast" id="toast"></div>
 
 <script>
+
+// ===== SUPABASE CONFIG =====
+const SUPABASE_URL = 'https://fildhztbtmgasasgivkn.supabase.co';
+const SUPABASE_KEY = 'sb_secret_dtQofDBrPNKOOdcKpW2qPw_NvWljj1S';
+
+// Supabase API helper
+async function sbFetch(endpoint, method='GET', body=null, extraHeaders={}){
+  const headers = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': method==='POST' ? 'return=representation' : '',
+    ...extraHeaders
+  };
+  const opts = {method, headers};
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + endpoint, opts);
+  if(!res.ok){
+    const err = await res.text();
+    console.error('Supabase error:', err);
+    return null;
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : [];
+}
+
+// Get products from Supabase
+async function getProductsFromDB(){
+  const data = await sbFetch('products?active=eq.true&order=category,name');
+  return data || [];
+}
+
+// Get/Save settings
+async function getSettingFromDB(key){
+  const data = await sbFetch('settings?key=eq.' + key);
+  return data && data[0] ? data[0].value : null;
+}
+
+async function saveSettingToDB(key, value){
+  await sbFetch('settings?key=eq.' + key, 'DELETE');
+  await sbFetch('settings', 'POST', {key, value});
+}
+
+// Customer functions
+async function registerCustomerDB(name, phone, password, address){
+  const existing = await sbFetch('customers?phone=eq.' + encodeURIComponent(phone));
+  if(existing && existing.length > 0) return {error: 'Phone already registered'};
+  const data = await sbFetch('customers', 'POST', {name, phone, password, address});
+  return data && data[0] ? data[0] : {error: 'Registration failed'};
+}
+
+async function loginCustomerDB(phone, password){
+  const data = await sbFetch('customers?phone=eq.' + encodeURIComponent(phone) + '&password=eq.' + encodeURIComponent(password));
+  return data && data[0] ? data[0] : null;
+}
+
+// Order functions
+async function placeOrderDB(order){
+  const data = await sbFetch('orders', 'POST', order);
+  return data && data[0] ? data[0] : null;
+}
+
+async function getCustomerOrdersDB(customerId){
+  const data = await sbFetch('orders?customer_id=eq.' + customerId + '&order=created_at.desc');
+  return data || [];
+}
+
+async function getAllOrdersDB(){
+  const data = await sbFetch('orders?order=created_at.desc');
+  return data || [];
+}
+
+async function updateOrderStatusDB(orderId, status, assignedTo){
+  const body = {status, updated_at: new Date().toISOString()};
+  if(assignedTo !== undefined) body.assigned_to = assignedTo;
+  await sbFetch('orders?id=eq.' + orderId, 'PATCH', body, {'Prefer':'return=minimal'});
+}
+
+// Init: Load products from DB on startup
+let DB_PRODUCTS = [];
+let DB_SETTINGS = {};
+let dbReady = false;
+
+async function initDB(){
+  try{
+    DB_PRODUCTS = await getProductsFromDB();
+    if(DB_PRODUCTS.length === 0){
+      // First time - seed default products
+      await seedDefaultProducts();
+      DB_PRODUCTS = await getProductsFromDB();
+    }
+    dbReady = true;
+    console.log('✅ Supabase connected! Products:', DB_PRODUCTS.length);
+  } catch(e){
+    console.error('DB init failed:', e);
+    dbReady = false;
+  }
+}
+
+async function seedDefaultProducts(){
+  const prods = DEFAULT_PRODUCTS.map(p => ({
+    name: p.name,
+    price: p.price,
+    mrp: p.mrp || null,
+    unit: p.unit,
+    category: p.category,
+    emoji: p.emoji || null,
+    stock: 100,
+    active: true
+  }));
+  for(const p of prods){
+    await sbFetch('products', 'POST', p);
+  }
+  console.log('✅ Default products seeded!');
+}
+
+// Override getProducts to use DB
+function getProducts(){
+  if(dbReady && DB_PRODUCTS.length > 0) return DB_PRODUCTS;
+  // Fallback to localStorage
+  try{
+    const saved = localStorage.getItem('sm_products');
+    const parsed = JSON.parse(saved);
+    if(Array.isArray(parsed) && parsed.length > 0) return parsed;
+  } catch(e){}
+  return DEFAULT_PRODUCTS;
+}
+// ===== END SUPABASE CONFIG =====
+
 // ===== PRODUCTS (shared with admin via localStorage) =====
 // ===== DELIVERY AREAS (Admin se manage hoga) =====
 const DEFAULT_AREAS = [
@@ -1397,7 +1526,7 @@ function chkNext2(){
     </div>`;
   setChkStep(3);
 }
-function placeOrder(){
+async function placeOrder(){
   const PRODS=getProducts();
   const sub=Object.keys(cart).reduce((s,id)=>s+(PRODS.find(p=>p.id==id)?.p||0)*cart[id],0);
   const del=sub>=300?0:20;
@@ -1424,6 +1553,21 @@ function placeOrder(){
   const all=JSON.parse(localStorage.getItem('sm_all_orders')||'[]');
   all.unshift({...order,customer:{name:currentUser.name,phone:currentUser.phone}});
   localStorage.setItem('sm_all_orders',JSON.stringify(all));
+  // Save to Supabase DB
+  try{
+    await placeOrderDB({
+      order_number: order.id,
+      customer_id: currentUser.id,
+      customer_name: currentUser.name,
+      customer_phone: currentUser.phone,
+      customer_address: JSON.stringify(order.addr),
+      items: order.items,
+      total: order.total,
+      status: 'placed',
+      payment_method: order.payment,
+      notes: order.utr || null
+    });
+  }catch(e){ console.log('DB save failed, using localStorage'); }
   cart={};updateCartBadge();
   closeModal('modal-checkout');
   showToast('🎉 Order place ho gaya! ID: '+order.id);
@@ -1624,28 +1768,68 @@ function switchTab(t){
   document.getElementById('tb-login').classList.toggle('on',t==='login');
   document.getElementById('tb-reg').classList.toggle('on',t==='reg');
 }
-function doLogin(){
+async function doLogin(){
   const ph=document.getElementById('lPhone').value.trim();
   const ps=document.getElementById('lPass').value;
+  showToast('⏳ Login ho raha hai...');
+  try{
+    const u = await loginCustomerDB(ph, ps);
+    if(u){
+      const user={id:u.id,name:u.name,phone:u.phone,email:u.email||'',pass:ps,addr:u.address||''};
+      loginUser(user);return;
+    }
+  }catch(e){}
+  // Fallback localStorage
   const users=JSON.parse(localStorage.getItem('sm_users')||'[]');
   const u=users.find(x=>x.phone===ph&&x.pass===ps);
   if(!u){const a=document.getElementById('authAlert');a.textContent='❌ Phone ya password galat!';a.style.display='block';return;}
   loginUser(u);
 }
-function doRegister(){
+async function doRegister(){
   const n=document.getElementById('rName').value.trim();
   const ph=document.getElementById('rPhone').value.trim();
   const ps=document.getElementById('rPass').value;
+  const addr=document.getElementById('rAddr').value;
+  const email=document.getElementById('rEmail').value;
   if(!n||!ph||!ps){const a=document.getElementById('authAlert');a.textContent='❌ Naam, Phone aur Password zaroori!';a.style.display='block';return;}
   if(ph.length!==10){const a=document.getElementById('authAlert');a.textContent='❌ 10 digit phone number!';a.style.display='block';return;}
-  const users=JSON.parse(localStorage.getItem('sm_users')||'[]');
-  if(users.find(u=>u.phone===ph)){const a=document.getElementById('authAlert');a.textContent='❌ Yeh number already registered!';a.style.display='block';return;}
-  const u={id:Date.now(),name:n,phone:ph,email:document.getElementById('rEmail').value,pass:ps,addr:document.getElementById('rAddr').value};
-  users.push(u);localStorage.setItem('sm_users',JSON.stringify(users));
-  loginUser(u);showToast('🎉 Account ban gaya! Welcome, '+n+'!');
+  showToast('⏳ Account ban raha hai...');
+  try{
+    const result = await registerCustomerDB(n, ph, ps, addr);
+    if(result.error){const a=document.getElementById('authAlert');a.textContent='❌ '+result.error;a.style.display='block';return;}
+    const u={id:result.id,name:result.name,phone:result.phone,email:result.email||email,pass:ps,addr:result.address||addr};
+    loginUser(u);showToast('🎉 Account ban gaya! Welcome, '+n+'!');
+  }catch(e){
+    // Fallback to localStorage
+    const users=JSON.parse(localStorage.getItem('sm_users')||'[]');
+    if(users.find(u=>u.phone===ph)){const a=document.getElementById('authAlert');a.textContent='❌ Yeh number already registered!';a.style.display='block';return;}
+    const u={id:Date.now(),name:n,phone:ph,email:email,pass:ps,addr:addr};
+    users.push(u);localStorage.setItem('sm_users',JSON.stringify(users));
+    loginUser(u);showToast('🎉 Account ban gaya! Welcome, '+n+'!');
+  }
 }
-function loginUser(u){
-  currentUser=u;orders=JSON.parse(localStorage.getItem('sm_orders_'+u.id)||'[]');
+async function loginUser(u){
+  currentUser=u;
+  // Load orders from DB
+  try{
+    const dbOrders = await getCustomerOrdersDB(u.id);
+    if(dbOrders && dbOrders.length > 0){
+      orders = dbOrders.map(o=>({
+        id: o.order_number,
+        date: new Date(o.created_at).toLocaleDateString('hi-IN'),
+        time: new Date(o.created_at).toLocaleTimeString('hi-IN',{hour:'2-digit',minute:'2-digit'}),
+        items: o.items,
+        total: o.total,
+        status: o.status,
+        payment: o.payment_method,
+        addr: o.customer_address ? JSON.parse(o.customer_address) : {}
+      }));
+    } else {
+      orders=JSON.parse(localStorage.getItem('sm_orders_'+u.id)||'[]');
+    }
+  }catch(e){
+    orders=JSON.parse(localStorage.getItem('sm_orders_'+u.id)||'[]');
+  }
   localStorage.setItem('sm_current',JSON.stringify(u));renderAccount();
 }
 function doLogout(){currentUser=null;orders=[];localStorage.removeItem('sm_current');renderAccount();showToast('👋 Logout ho gaye!');}
@@ -1805,9 +1989,16 @@ if(saved){currentUser=JSON.parse(saved);orders=JSON.parse(localStorage.getItem('
   }
 })();
 
-renderCategories();
-filterCat('all');
-initBanner();
+// Initialize Supabase DB
+initDB().then(()=>{
+  renderCategories();
+  filterCat('all');
+  initBanner();
+}).catch(()=>{
+  renderCategories();
+  filterCat('all');
+  initBanner();
+});
 initSearch();
 updateCartBadge();
 </script>
