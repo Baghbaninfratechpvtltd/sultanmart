@@ -219,9 +219,9 @@ async function sbFetch(endpoint, method='GET', body=null){
   }catch(e){ return null; }
 }
 
-// Delivery: Get assigned orders from DB
+// Delivery: Get assigned orders from DB (exclude delivered and cancelled)
 async function getDeliveryOrdersDB(){
-  const data = await sbFetch('orders?status=neq.delivered&order=created_at.desc');
+  const data = await sbFetch('orders?status=neq.delivered&status=neq.cancelled&order=created_at.desc');
   return data || [];
 }
 
@@ -257,10 +257,17 @@ function startDeliveryAutoRefresh(){
             addr: o.customer_address ? (()=>{try{return JSON.parse(o.customer_address)}catch(e){return {addr:o.customer_address}}})() : {}
           };
         });
-        localStorage.setItem('sm_all_orders', JSON.stringify(mapped));
+        // Delivered orders ko preserve karo - sirf non-delivered update karo
+        const existing = JSON.parse(localStorage.getItem('sm_all_orders')||'[]');
+        const merged = mapped.map(dbOrder => {
+          const localOrder = existing.find(e => e.id === dbOrder.id);
+          // Agar locally delivered mark hai toh wahi rakho
+          if(localOrder && localOrder.status === 'delivered') return localOrder;
+          return dbOrder;
+        });
+        localStorage.setItem('sm_all_orders', JSON.stringify(merged));
         // Re-render if on orders view
-        if(typeof renderDeliveryOrders === 'function') renderDeliveryOrders();
-        else if(typeof loadOrders === 'function') loadOrders();
+        if(typeof renderOrders === 'function') renderOrders();
       }
     }catch(e){}
   }, 15000);
@@ -398,7 +405,7 @@ function confirmDelivered(orderId){
   markDelivered(orderId);
 }
 
-function markDelivered(orderId){
+async function markDelivered(orderId){
   const all = getAllOrders();
   const idx = all.findIndex(o=>o.id===orderId);
   if(idx<0){ showToast('❌ Order nahi mila!'); return; }
@@ -408,6 +415,13 @@ function markDelivered(orderId){
   saveAllOrders(all);
   showToast('🎉 Order #'+orderId+' Delivered!');
   renderOrders();
+  // DB mein turant save karo - warna auto refresh purana status wapas laayega
+  try{
+    await updateDeliveryOrderDB(orderId, 'delivered');
+    console.log('✅ Delivered status DB mein save ho gaya:', orderId);
+  }catch(e){
+    console.log('DB save failed:', e);
+  }
 }
 
 // ===== TABS =====
@@ -471,10 +485,11 @@ function onQRSuccess(text){
   }
 }
 
-function markScannedDelivered(){
+async function markScannedDelivered(){
   if(!scannedOrderId) return;
-  markDelivered(scannedOrderId);
-  closeScanner();
+  closeScanner(); // Pehle scanner band karo
+  await markDelivered(scannedOrderId); // Phir deliver mark karo
+  showToast('🎉 Order deliver ho gaya!');
 }
 
 function closeScanner(){
@@ -502,7 +517,7 @@ function manualConfirm(){
         <div>💰 ₹${o.total} | ${o.payment==='cod'?'💵 COD':'✅ UPI'}</div>
         <div>📍 ${o.addr?.house}, ${o.addr?.area||''}</div>
       </div>
-      <button onclick="markDelivered('${o.id}');closeScanner()" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Baloo 2',cursive">
+      <button onclick="closeScanner();markDelivered('${o.id}')" style="width:100%;margin-top:10px;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Baloo 2',cursive">
         ✅ Delivered Confirm Karo
       </button>
     </div>`;
