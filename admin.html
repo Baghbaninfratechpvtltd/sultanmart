@@ -374,6 +374,10 @@ tr:hover td{background:rgba(255,255,255,.02)}
 
     <!-- ===== PRODUCTS ===== -->
     <div class="panel" id="panel-products">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <h3 style="font-size:16px;font-weight:700">📦 Products</h3>
+        <button onclick="syncAllProductsToDB().then(()=>showToast('✅ Sab products DB mein sync ho gaye!','success'))" style="background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer">🔄 DB Sync Karo</button>
+      </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
         <div class="filter-bar">
           <input class="finput" type="text" id="prodSearch" placeholder="Product dhundho..." oninput="renderProductsAdmin()">
@@ -1344,14 +1348,13 @@ function editProd(id){
   document.getElementById('pDesc').value=p.desc||'';
   openModal('modal-product');
 }
-function saveProd(){
+async function saveProd(){
   const name=document.getElementById('pName').value.trim();
   const brand=document.getElementById('pBrand').value.trim();
   const price=parseInt(document.getElementById('pPrice').value);
   const mrp=parseInt(document.getElementById('pMrp').value);
   if(!name||!brand||!price||!mrp){showToast('❌ Naam, Brand, Price aur MRP zaroori hai!','error');return;}
   const editId=document.getElementById('editProdId').value;
-  // Image: file upload takes priority, then URL
   const fileInput = document.getElementById('pImgFile');
   const imgData = (fileInput._dataUrl) || document.getElementById('pImgUrl').value.trim() || '';
   const prod={
@@ -1371,15 +1374,45 @@ function saveProd(){
     showToast('✅ Naya product add ho gaya!','success');
   }
   saveProducts();
+  // Supabase mein sync karo - customer ko auto update milega
+  try{
+    const dbProd = {
+      name: prod.name,
+      price: prod.p,
+      mrp: prod.m,
+      unit: prod.unit,
+      category: prod.cat,
+      emoji: prod.e,
+      image: prod.img||null,
+      stock: prod.stock,
+      active: true
+    };
+    if(editId && parseInt(editId) > 1000000){ // localStorage id
+      // Old localStorage product - add as new in DB
+      await sbFetch('products', 'POST', dbProd);
+    } else if(editId){
+      await sbFetch('products?id=eq.'+editId, 'PATCH', dbProd);
+    } else {
+      await sbFetch('products', 'POST', dbProd);
+    }
+    // Re-seed all products to DB for full sync
+    await syncAllProductsToDB();
+  }catch(e){ console.log('Product DB sync failed:', e); }
   closeModal('modal-product');
   renderProductsAdmin();
 }
-function deleteProd(id){
+
+async function deleteProd(id){
   if(!confirm('Kya aap is product ko delete karna chahte hain?'))return;
   PRODUCTS=PRODUCTS.filter(p=>p.id!==id);
   saveProducts();
   renderProductsAdmin();
   showToast('🗑️ Product delete ho gaya!');
+  // DB se bhi delete karo
+  try{
+    await sbFetch('products?id=eq.'+id, 'DELETE');
+    await syncAllProductsToDB();
+  }catch(e){}
 }
 function saveProducts(){localStorage.setItem('sm_products',JSON.stringify(PRODUCTS));}
 
@@ -1499,6 +1532,30 @@ function removeStaff(id){
 }
 
 // ===== SETTINGS =====
+
+// Sync all products to Supabase
+async function syncAllProductsToDB(){
+  try{
+    // Delete all existing
+    await sbFetch('products', 'DELETE', null, {'Prefer':'return=minimal'});
+    // Re-insert all
+    for(const p of PRODUCTS){
+      await sbFetch('products', 'POST', {
+        name: p.name,
+        price: p.p,
+        mrp: p.m||null,
+        unit: p.unit||'',
+        category: p.cat||'other',
+        emoji: p.e||'📦',
+        image: p.img||null,
+        stock: p.stock||100,
+        active: true
+      });
+    }
+    console.log('✅ All products synced to DB!');
+  }catch(e){ console.log('Sync failed:', e); }
+}
+
 // ===== DELIVERY BOY MANAGEMENT =====
 function getDeliveryBoyNames(){
   return JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]');
@@ -1535,7 +1592,7 @@ function renderDeliveryBoys(){
     </div>`).join('');
 }
 
-function saveSettings(){
+async function saveSettings(){
   const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
   const pin = document.getElementById('sSecretPin').value.trim();
   const dpin = document.getElementById('sDeliveryPin').value.trim();
@@ -1544,6 +1601,11 @@ function saveSettings(){
   if(pin) s.secretPin = pin;
   if(dpin) s.deliveryPin = dpin;
   localStorage.setItem('sm_settings', JSON.stringify(s));
+  // Supabase mein bhi save karo taaki customers ko auto update ho
+  try{
+    await sbFetch('settings?key=eq.shop_settings', 'DELETE');
+    await sbFetch('settings', 'POST', {key:'shop_settings', value:s});
+  }catch(e){ console.log('Settings DB save failed'); }
   showToast('✅ Settings save ho gayi!','success');
 }
 function changePass(){
@@ -2061,15 +2123,21 @@ function updateDealPreview(){
   const tag = document.getElementById('dealTagInput')?.value;
   if(document.getElementById('dealTagPrev') && tag) document.getElementById('dealTagPrev').textContent = tag;
 }
-function saveDeals(){
+async function saveDeals(){
   const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
   s.dealItems = dealItems;
   s.dealTag = document.getElementById('dealTagInput').value;
   localStorage.setItem('sm_settings', JSON.stringify(s));
-  showToast('✅ Deals save ho gayi! App mein update ho jaayega.','success');
+  // Supabase mein save karo - customers ko auto update milega
+  try{
+    await sbFetch('settings?key=eq.shop_settings', 'DELETE');
+    await sbFetch('settings', 'POST', {key:'shop_settings', value:s});
+    showToast('✅ Deals save ho gayi! Customers ko 20 sec mein auto update milega.','success');
+  }catch(e){
+    showToast('✅ Deals save ho gayi!','success');
+  }
 }
 
-// ===== HELPERS =====
 function verifyPayment(id){
   ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders') || '[]');
   const idx=ALL_ORDERS.findIndex(o=>o.id===id);
