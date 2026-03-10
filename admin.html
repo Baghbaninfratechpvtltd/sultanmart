@@ -1876,12 +1876,10 @@ function getDeliveryBoyNames(){
 
 async function saveDeliveryBoystoDB(boys){
   try{
-    // UPSERT - agar exist kare to update, nahi to insert
-    const res = await sbFetch('settings', 'POST', 
-      {key:'delivery_boys', value: boys},
-      {'Prefer':'resolution=merge-duplicates,return=minimal', 'Content-Type':'application/json'}
-    );
-    console.log('✅ Boys saved to DB:', boys);
+    // Pehle delete karo phir insert - simple aur reliable
+    await sbFetch('settings?key=eq.delivery_boys', 'DELETE');
+    const res = await sbFetch('settings', 'POST', {key:'delivery_boys', value: boys});
+    console.log('✅ Boys saved to DB:', boys, 'Result:', res);
     return true;
   }catch(e){
     console.error('Boys save to DB failed:', e);
