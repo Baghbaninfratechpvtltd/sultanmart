@@ -331,6 +331,58 @@ body{font-family:'Hind',sans-serif;background:var(--bg);color:var(--text);min-he
 <div class="toast" id="toast"></div>
 
 <script>
+
+// ===== SUPABASE AUTO REFRESH =====
+const SUPABASE_URL = 'https://fildhztbtmgasasgivkn.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_SknQa0OfxOJMGC_iyeYQBA_jXnShxBG';
+
+async function sbFetch(endpoint, method='GET', body=null){
+  const headers = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_KEY,
+    'Content-Type': 'application/json',
+    'Prefer': method==='POST'?'return=representation':(method==='PATCH'?'return=minimal':'')
+  };
+  const opts = {method, headers};
+  if(body) opts.body = JSON.stringify(body);
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/' + endpoint, opts);
+    if(!res.ok) return null;
+    const text = await res.text();
+    return text ? JSON.parse(text) : [];
+  }catch(e){ return null; }
+}
+
+// Seller: Get orders for this seller
+async function getSellerOrdersDB(sellerId){
+  const data = await sbFetch('orders?order=created_at.desc');
+  if(!data) return [];
+  return data.filter(o => {
+    try{
+      const items = Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]');
+      return items.some(i => i.sellerId === sellerId);
+    }catch(e){ return false; }
+  });
+}
+
+// Auto refresh seller orders every 20 seconds
+let sellerAutoRefreshStarted = false;
+function startSellerAutoRefresh(sellerId){
+  if(sellerAutoRefreshStarted) return;
+  sellerAutoRefreshStarted = true;
+  setInterval(async ()=>{
+    try{
+      const dbOrders = await getSellerOrdersDB(sellerId);
+      if(dbOrders && dbOrders.length > 0){
+        // Re-render orders if on that page
+        if(typeof renderSellerOrders === 'function') renderSellerOrders(dbOrders);
+        if(typeof updateSellerStats === 'function') updateSellerStats();
+      }
+    }catch(e){}
+  }, 20000);
+}
+// ===== END SUPABASE =====
+
 // ===== STATE =====
 let currentSeller = null;
 let editingProductId = null;
