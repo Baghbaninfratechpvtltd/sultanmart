@@ -598,6 +598,23 @@ tr:hover td{background:rgba(255,255,255,.02)}
       </div>
     </div>
 
+    <!-- ===== DELIVERY BOY REPORT ===== -->
+    <div class="panel" id="panel-deliveryreport">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px">
+        <h2 style="font-size:18px;font-weight:700">🛵 Delivery Boy Report</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select id="drDateFilter" onchange="renderDeliveryReport()" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--card);color:var(--text)">
+            <option value="all">📅 Sab Time</option>
+            <option value="today">📅 Aaj</option>
+            <option value="week">📅 Is Hafte</option>
+            <option value="month">📅 Is Mahine</option>
+          </select>
+          <button onclick="exportDeliveryReport()" style="background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer">📥 Export CSV</button>
+        </div>
+      </div>
+      <div id="deliveryReportBody"></div>
+    </div>
+
     <!-- ===== DELIVERY AREAS ===== -->
     <div class="panel" id="panel-delivery">
       <div style="max-width:700px">
@@ -1062,6 +1079,7 @@ function showPanel(p){
     renderDeliveryBoys();
   }
   if(p==='logo') loadLogoSettings();
+  if(p==='deliveryreport'){ loadAllOrdersWithDB().then(()=>renderDeliveryReport()); }
   if(p==='deals') loadDeals();
 }
 
@@ -1662,6 +1680,148 @@ async function syncAllProductsToDB(){
     }
     console.log('✅ All products synced to DB!');
   }catch(e){ console.log('Sync failed:', e); }
+}
+
+
+// ===== DELIVERY BOY REPORT =====
+function renderDeliveryReport(){
+  const filter = document.getElementById('drDateFilter')?.value || 'all';
+  const now = new Date();
+
+  // Filter orders by date
+  let orders = ALL_ORDERS.filter(o => {
+    if(filter === 'all') return true;
+    const d = new Date(o.created_at || o.date);
+    if(filter === 'today'){
+      return d.toDateString() === now.toDateString();
+    } else if(filter === 'week'){
+      const weekAgo = new Date(now - 7*24*60*60*1000);
+      return d >= weekAgo;
+    } else if(filter === 'month'){
+      return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+    }
+    return true;
+  });
+
+  // Group by delivery boy
+  const boyMap = {};
+  orders.forEach(o => {
+    const boy = o.assignedTo || o.assigned_to || 'Unassigned';
+    if(!boyMap[boy]) boyMap[boy] = {name:boy, delivered:0, cancelled:0, pending:0, cod:0, orders:[]};
+    if(o.status === 'delivered'){
+      boyMap[boy].delivered++;
+      if(o.payment === 'cod') boyMap[boy].cod += (o.total||0);
+    } else if(o.status === 'cancelled'){
+      boyMap[boy].cancelled++;
+    } else if(o.status === 'delivery'){
+      boyMap[boy].pending++;
+    }
+    boyMap[boy].orders.push(o);
+  });
+
+  const boys = Object.values(boyMap);
+  const el = document.getElementById('deliveryReportBody');
+  if(!el) return;
+
+  if(!boys.length){
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text2)">📦 Koi data nahi mila</div>';
+    return;
+  }
+
+  // Summary cards
+  const totalDelivered = boys.reduce((s,b)=>s+b.delivered,0);
+  const totalCancelled = boys.reduce((s,b)=>s+b.cancelled,0);
+  const totalPending = boys.reduce((s,b)=>s+b.pending,0);
+  const totalCOD = boys.reduce((s,b)=>s+b.cod,0);
+
+  el.innerHTML = `
+    <!-- Summary -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:28px;font-weight:800;color:#10b981">${totalDelivered}</div>
+        <div style="font-size:12px;color:var(--text2)">Total Delivered</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:28px;font-weight:800;color:#ef4444">${totalCancelled}</div>
+        <div style="font-size:12px;color:var(--text2)">Total Cancelled</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:28px;font-weight:800;color:#f97316">${totalPending}</div>
+        <div style="font-size:12px;color:var(--text2)">Pending</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:28px;font-weight:800;color:#1a6dd4">₹${totalCOD}</div>
+        <div style="font-size:12px;color:var(--text2)">Total COD</div>
+      </div>
+    </div>
+
+    <!-- Per Boy Table -->
+    <div class="card" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--sidebar)">
+            <th style="padding:10px 12px;text-align:left;font-weight:700">🛵 Delivery Boy</th>
+            <th style="padding:10px 12px;text-align:center;color:#10b981">✅ Delivered</th>
+            <th style="padding:10px 12px;text-align:center;color:#ef4444">❌ Cancelled</th>
+            <th style="padding:10px 12px;text-align:center;color:#f97316">⏳ Pending</th>
+            <th style="padding:10px 12px;text-align:center;color:#1a6dd4">💰 COD Collected</th>
+            <th style="padding:10px 12px;text-align:center">📊 Success %</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${boys.filter(b=>b.name!=='Unassigned').map(b => {
+            const total = b.delivered + b.cancelled + b.pending;
+            const pct = total > 0 ? Math.round((b.delivered/total)*100) : 0;
+            const pctColor = pct>=80?'#10b981':pct>=50?'#f97316':'#ef4444';
+            return `<tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:10px 12px;font-weight:600">${b.name}</td>
+              <td style="padding:10px 12px;text-align:center">
+                <span style="background:rgba(16,185,129,.1);color:#10b981;padding:3px 10px;border-radius:20px;font-weight:700">${b.delivered}</span>
+              </td>
+              <td style="padding:10px 12px;text-align:center">
+                <span style="background:rgba(239,68,68,.1);color:#ef4444;padding:3px 10px;border-radius:20px;font-weight:700">${b.cancelled}</span>
+              </td>
+              <td style="padding:10px 12px;text-align:center">
+                <span style="background:rgba(249,115,22,.1);color:#f97316;padding:3px 10px;border-radius:20px;font-weight:700">${b.pending}</span>
+              </td>
+              <td style="padding:10px 12px;text-align:center;font-weight:700">₹${b.cod}</td>
+              <td style="padding:10px 12px;text-align:center">
+                <span style="color:${pctColor};font-weight:800;font-size:15px">${pct}%</span>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function exportDeliveryReport(){
+  const filter = document.getElementById('drDateFilter')?.value || 'all';
+  let rows = [['Delivery Boy','Delivered','Cancelled','Pending','COD Collected','Success %']];
+  const now = new Date();
+  const boyMap = {};
+  ALL_ORDERS.forEach(o => {
+    const d = new Date(o.created_at || o.date);
+    if(filter==='today' && d.toDateString()!==now.toDateString()) return;
+    if(filter==='week' && d < new Date(now-7*24*60*60*1000)) return;
+    if(filter==='month' && (d.getMonth()!==now.getMonth()||d.getFullYear()!==now.getFullYear())) return;
+    const boy = o.assignedTo || o.assigned_to || 'Unassigned';
+    if(!boyMap[boy]) boyMap[boy]={delivered:0,cancelled:0,pending:0,cod:0};
+    if(o.status==='delivered'){boyMap[boy].delivered++;if(o.payment==='cod')boyMap[boy].cod+=(o.total||0);}
+    else if(o.status==='cancelled') boyMap[boy].cancelled++;
+    else if(o.status==='delivery') boyMap[boy].pending++;
+  });
+  Object.entries(boyMap).forEach(([name,b])=>{
+    const total=b.delivered+b.cancelled+b.pending;
+    const pct=total>0?Math.round((b.delivered/total)*100):0;
+    rows.push([name,b.delivered,b.cancelled,b.pending,'₹'+b.cod,pct+'%']);
+  });
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='delivery_report_'+new Date().toLocaleDateString('en-IN').replace(/\//g,'-')+'.csv';
+  a.click();
+  showToast('✅ Report download ho gayi!','success');
 }
 
 // ===== DELIVERY BOY MANAGEMENT =====
