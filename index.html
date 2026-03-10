@@ -1650,7 +1650,14 @@ function renderOrders(){
         <div class="oc-total">₹${o.total}</div>
         <div class="oc-actions">
           ${(o.status==='placed'||o.status==='confirm')?`<button class="btn-sm btn-cancel-sm" onclick="openCR('${o.id}','cancel')">❌ Cancel</button>`:''}
-          ${o.status==='delivered'?`<button class="btn-sm btn-replace-sm" onclick="openCR('${o.id}','replace')">🔄 Replace</button>`:''}
+          ${(()=>{
+            if(o.status !== 'delivered') return '';
+            const deliveredTime = o.deliveredAt ? new Date(o.deliveredAt) : new Date(o.date);
+            const hoursPassed = (Date.now() - deliveredTime) / (1000 * 60 * 60);
+            if(hoursPassed > 48) return '<span style="font-size:10px;color:#94a3b8">⏰ Replace window closed</span>';
+            const hoursLeft = Math.max(0, Math.round(48 - hoursPassed));
+            return `<button class="btn-sm btn-replace-sm" onclick="openCR('${o.id}','replace')">🔄 Replace (${hoursLeft}h left)</button>`;
+          })()}
           <button class="btn-sm btn-invoice-sm" onclick="openInv('${o.id}')">🧾 Invoice</button>
         </div>
       </div>
