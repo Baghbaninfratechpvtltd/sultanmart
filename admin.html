@@ -484,12 +484,13 @@ tr:hover td{background:rgba(255,255,255,.02)}
           <h3>🛵 Delivery Boys</h3>
         </div>
         <div style="padding:16px">
-          <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Yahan delivery boys ke naam add karo — Bulk Tracking mein assign kar sakte ho</p>
-          <div style="display:flex;gap:8px;margin-bottom:12px">
+          <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Har delivery boy ka <strong>naam aur PIN</strong> set karo — woh delivery app mein naam + PIN se login karenge</p>
+          <div style="display:grid;grid-template-columns:1fr 120px auto;gap:8px;margin-bottom:12px">
             <input type="text" id="newDeliveryBoyName" placeholder="Delivery boy ka naam" 
-              style="flex:1;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--card);color:var(--text)"
-              onkeydown="if(event.key==='Enter') addDeliveryBoy()">
-            <button onclick="addDeliveryBoy()" class="btn-primary" style="white-space:nowrap">➕ Add Karo</button>
+              style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--card);color:var(--text)">
+            <input type="text" id="newDeliveryBoyPin" placeholder="PIN (4 digit)" maxlength="4" inputmode="numeric"
+              style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--card);color:var(--text);text-align:center;letter-spacing:4px">
+            <button onclick="addDeliveryBoy()" class="btn-primary" style="white-space:nowrap">➕ Add</button>
           </div>
           <div id="deliveryBoysList"></div>
         </div>
@@ -1864,8 +1865,13 @@ function exportDeliveryReport(){
 }
 
 // ===== DELIVERY BOY MANAGEMENT =====
+function getDeliveryBoysList(){
+  const raw = JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]');
+  // Handle both old format (array of strings) and new format (array of objects)
+  return raw.map(b => typeof b === 'string' ? {name:b, pin:'1234'} : b);
+}
 function getDeliveryBoyNames(){
-  return JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]');
+  return getDeliveryBoysList().map(b=>b.name);
 }
 
 async function saveDeliveryBoystoDB(boys){
@@ -1890,6 +1896,8 @@ async function loadDeliveryBoysFromDB(){
       let boys = data[0].value;
       if(typeof boys === 'string') boys = JSON.parse(boys);
       if(!Array.isArray(boys)) boys = [];
+      // Normalize: purana format string tha, naya object hai
+      boys = boys.map(b => typeof b === 'string' ? {name:b, pin:'1234'} : b);
       localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
       renderDeliveryBoys();
       console.log('✅ Delivery boys DB se loaded:', boys);
@@ -1900,44 +1908,51 @@ async function loadDeliveryBoysFromDB(){
 }
 async function addDeliveryBoy(){
   const name = document.getElementById('newDeliveryBoyName').value.trim();
+  const pin = document.getElementById('newDeliveryBoyPin').value.trim();
   if(!name){ showToast('❌ Naam daalo!','error'); return; }
-  const boys = getDeliveryBoyNames();
-  if(boys.includes(name)){ showToast('❌ Yeh naam pehle se hai!','error'); return; }
-  boys.push(name);
+  if(!pin || pin.length !== 4 || isNaN(pin)){ showToast('❌ 4 digit PIN daalo!','error'); return; }
+  const boys = getDeliveryBoysList();
+  if(boys.find(b=>b.name===name)){ showToast('❌ Yeh naam pehle se hai!','error'); return; }
+  if(boys.find(b=>b.pin===pin)){ showToast('❌ Yeh PIN pehle se kisi aur ka hai!','error'); return; }
+  boys.push({name, pin});
   localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
   document.getElementById('newDeliveryBoyName').value='';
+  document.getElementById('newDeliveryBoyPin').value='';
   renderDeliveryBoys();
   showToast('⏳ Save ho raha hai...','success');
   const ok = await saveDeliveryBoystoDB(boys);
   if(ok){
-    showToast('✅ '+name+' add aur save ho gaya! Refresh ke baad bhi rahega.','success');
+    showToast('✅ '+name+' (PIN:'+pin+') add ho gaya! Refresh ke baad bhi rahega.','success');
   } else {
     showToast('⚠️ '+name+' add hua lekin DB save nahi hua — internet check karo','error');
   }
 }
 async function removeDeliveryBoy(name){
-  const boys = getDeliveryBoyNames().filter(b=>b!==name);
+  const boys = getDeliveryBoysList().filter(b=>b.name!==name);
   localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
   renderDeliveryBoys();
   const ok = await saveDeliveryBoystoDB(boys);
   if(ok){
-    showToast('🗑️ '+name+' remove aur DB se bhi delete ho gaya!','success');
+    showToast('🗑️ '+name+' remove ho gaya!','success');
   } else {
     showToast('🗑️ '+name+' remove hua (DB sync nahi hua)','error');
   }
 }
 function renderDeliveryBoys(){
-  const boys = getDeliveryBoyNames();
+  const boys = getDeliveryBoysList();
   const el = document.getElementById('deliveryBoysList');
   if(!el) return;
   if(!boys.length){
-    el.innerHTML='<div style="font-size:12px;color:#94a3b8;padding:6px 0">Koi delivery boy nahi — Add karo!</div>';
+    el.innerHTML='<div style="font-size:12px;color:#94a3b8;padding:8px 0">Koi delivery boy nahi — Naam aur PIN daalo aur Add karo!</div>';
     return;
   }
   el.innerHTML = boys.map(b=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(249,115,22,.08);border-radius:6px;margin-bottom:4px;font-size:13px">
-      <span>🛵 ${b}</span>
-      <button onclick="removeDeliveryBoy('${b}')" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer">Remove</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(249,115,22,.08);border-radius:8px;margin-bottom:6px;font-size:13px">
+      <div>
+        <span style="font-weight:700">🛵 ${b.name}</span>
+        <span style="margin-left:12px;background:rgba(99,102,241,.15);color:#818cf8;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:2px">PIN: ${b.pin}</span>
+      </div>
+      <button onclick="removeDeliveryBoy('${b.name}')" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">🗑️ Remove</button>
     </div>`).join('');
 }
 
@@ -2230,7 +2245,7 @@ function renderBulkTracking(){
       <td style="padding:8px 12px">
         <select onchange="assignDeliveryBoy('${o.id}',this.value)" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:var(--card);color:var(--text)">
           <option value="">Assign...</option>
-          ${[...new Set([...JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]'),...getDeliveryBoys()])].map(b=>`<option value="${b}" ${o.assignedTo===b?'selected':''}>${b}</option>`).join('')}
+          ${[...new Set([...getDeliveryBoyNames(),...getDeliveryBoys()])].map(b=>`<option value="${b}" ${(o.assignedTo===b||o.assigned_to===b)?'selected':''}>${b}</option>`).join('')}
           <option value="__new__">+ Add Boy</option>
         </select>
         ${o.assignedTo?`<div style="font-size:10px;color:var(--green);margin-top:2px">🛵 ${o.assignedTo}</div>`:''}
