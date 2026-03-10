@@ -646,9 +646,9 @@ function onQRSuccess(text){
 
 async function markScannedDelivered(){
   if(!scannedOrderId) return;
-  closeScanner(); // Pehle scanner band karo
-  await markDelivered(scannedOrderId); // Phir deliver mark karo
-  showToast('🎉 Order deliver ho gaya!');
+  const orderToDeliver = scannedOrderId; // Pehle save karo!
+  closeScanner(); // Scanner band karo (scannedOrderId null ho jaata hai)
+  await markDelivered(orderToDeliver); // Saved id use karo
 }
 
 function closeScanner(){
