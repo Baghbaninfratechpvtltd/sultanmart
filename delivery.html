@@ -406,22 +406,28 @@ function confirmDelivered(orderId){
 }
 
 async function markDelivered(orderId){
-  const all = getAllOrders();
-  const idx = all.findIndex(o=>o.id===orderId);
-  if(idx<0){ showToast('❌ Order nahi mila!'); return; }
-  all[idx].status = 'delivered';
-  if(!all[idx].statusHistory) all[idx].statusHistory=[];
-  all[idx].statusHistory.push({s:'delivered', t:new Date().toLocaleString('hi-IN'), by: deliveryBoy.name});
-  saveAllOrders(all);
-  showToast('🎉 Order #'+orderId+' Delivered!');
-  renderOrders();
-  // DB mein turant save karo - warna auto refresh purana status wapas laayega
+  showToast('⏳ Update ho raha hai...');
+  // DB mein seedha update karo - yahi sahi tarika hai
   try{
     await updateDeliveryOrderDB(orderId, 'delivered');
-    console.log('✅ Delivered status DB mein save ho gaya:', orderId);
+    console.log('✅ DB updated:', orderId);
   }catch(e){
-    console.log('DB save failed:', e);
+    console.log('DB update failed:', e);
   }
+  // LocalStorage mein bhi update karo
+  const all = getAllOrders();
+  const idx = all.findIndex(o=>o.id===orderId);
+  if(idx>=0){
+    all[idx].status = 'delivered';
+    saveAllOrders(all);
+  } else {
+    // Order localStorage mein nahi hai - DB se aaya tha
+    // Directly add as delivered
+    all.push({id:orderId, status:'delivered'});
+    saveAllOrders(all);
+  }
+  showToast('🎉 Order #'+orderId+' Delivered!');
+  renderOrders();
 }
 
 // ===== TABS =====
@@ -493,16 +499,32 @@ async function markScannedDelivered(){
 }
 
 function closeScanner(){
-  if(html5QrCode){ html5QrCode.stop().catch(()=>{}); html5QrCode=null; }
-  document.getElementById('scanModal').classList.remove('open');
-  document.getElementById('qrReader').innerHTML='';
-  currentTab='pending';
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
-  document.getElementById('tab-pending').classList.add('on');
+  try{
+    if(html5QrCode){
+      html5QrCode.stop().catch(()=>{});
+      html5QrCode = null;
+    }
+  }catch(e){}
+  const modal = document.getElementById('scanModal');
+  if(modal){
+    modal.classList.remove('open');
+    modal.style.display = 'none';
+    setTimeout(()=>{ modal.style.display = ''; }, 100);
+  }
+  const qrDiv = document.getElementById('qrReader');
+  if(qrDiv) qrDiv.innerHTML = '';
+  const scanResult = document.getElementById('scanResult');
+  if(scanResult) scanResult.style.display = 'none';
+  const manualResult = document.getElementById('manualResult');
+  if(manualResult) manualResult.innerHTML = '';
+  scannedOrderId = null;
+  currentTab = 'pending';
+  document.querySelectorAll('.tab').forEach(t=>{
+    t.classList.toggle('active', t.dataset.tab==='pending');
+  });
   renderOrders();
 }
 
-// ===== MANUAL ORDER ID =====
 function manualConfirm(){
   const id = document.getElementById('manualOrderId').value.trim().toUpperCase();
   if(!id){ showToast('❌ Order ID bharo!'); return; }
