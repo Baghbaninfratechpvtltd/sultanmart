@@ -2001,6 +2001,45 @@ initDB().then(()=>{
 });
 initSearch();
 updateCartBadge();
+
+// ===== AUTO REFRESH =====
+// Products har 30 second mein refresh
+setInterval(async ()=>{
+  try{
+    const newProds = await getProductsFromDB();
+    if(newProds && newProds.length > 0){
+      DB_PRODUCTS = newProds;
+      renderCategories();
+      const activeCat = document.querySelector('.cat-btn.active');
+      if(activeCat) filterCat(activeCat.dataset.cat || 'all');
+    }
+  }catch(e){}
+}, 30000);
+
+// Orders har 15 second mein refresh (sirf login hone par)
+setInterval(async ()=>{
+  if(!currentUser) return;
+  try{
+    const dbOrders = await getCustomerOrdersDB(currentUser.id);
+    if(dbOrders && dbOrders.length > 0){
+      orders = dbOrders.map(o=>({
+        id: o.order_number,
+        date: new Date(o.created_at).toLocaleDateString('hi-IN'),
+        time: new Date(o.created_at).toLocaleTimeString('hi-IN',{hour:'2-digit',minute:'2-digit'}),
+        items: o.items,
+        total: o.total,
+        status: o.status,
+        payment: o.payment_method,
+        addr: o.customer_address ? (()=>{try{return JSON.parse(o.customer_address)}catch(e){return {}}})() : {}
+      }));
+      // Agar orders page open hai to refresh karo
+      const ordersPage = document.getElementById('page-orders');
+      if(ordersPage && ordersPage.classList.contains('active')){
+        renderOrders();
+      }
+    }
+  }catch(e){}
+}, 15000);
 </script>
 </div><!-- /app-container -->
 </div><!-- /desk-main -->
