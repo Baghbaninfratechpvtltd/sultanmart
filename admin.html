@@ -1073,7 +1073,8 @@ async function initDashboard(){
   updateTime();
   setInterval(updateTime, 1000);
   // Auto refresh orders every 30 seconds
-  setInterval(autoRefreshOrders, 30000);
+  setInterval(autoRefreshOrders, 10000); // Orders har 10 second
+  setInterval(updateStats, 15000); // Stats har 15 second
   checkNewOrders();
 }
 
@@ -1084,8 +1085,10 @@ async function autoRefreshOrders(){
   renderRecentOrders();
   checkNewOrders();
 }
-function updateStats(){
-  ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders') || 'null') || ALL_ORDERS;
+async function updateStats(){
+  // DB se fresh data lo
+  const dbLoaded = await loadAllOrdersWithDB();
+  if(!dbLoaded) ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders') || 'null') || ALL_ORDERS;
   const total=ALL_ORDERS.length;
   const revenue=ALL_ORDERS.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+o.total,0);
   const pending=ALL_ORDERS.filter(o=>o.status==='placed').length;
