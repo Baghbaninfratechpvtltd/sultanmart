@@ -308,55 +308,55 @@ async function doLogin(){
   document.getElementById('loginErr').style.display = 'none';
   showToast('⏳ Login ho raha hai...');
 
-  // DB se delivery boys list lo aur verify karo
-  try{
-    const data = await sbFetch('settings?key=eq.delivery_boys');
-    if(data && data.length > 0){
-      let boys = data[0].value;
-      if(typeof boys === 'string') boys = JSON.parse(boys);
-      boys = boys.map(b => typeof b === 'string' ? {name:b, pin:'4321'} : b);
-      
-      // Naam aur PIN dono match karo
-      const found = boys.find(b => 
-        b.name.toLowerCase() === name.toLowerCase() && b.pin === pin
-      );
-      
-      if(!found){
-        document.getElementById('loginErr').textContent = '❌ Naam ya PIN galat hai!';
-        document.getElementById('loginErr').style.display = 'block';
-        return;
-      }
-      
+  // DB se delivery boys list lo
+  const data = await sbFetch('settings?key=eq.delivery_boys');
+  console.log('DB response:', data);
+  
+  if(data && data.length > 0){
+    let boys = data[0].value;
+    // JSONB se aane wala value already parsed hota hai
+    if(typeof boys === 'string') boys = JSON.parse(boys);
+    if(!Array.isArray(boys)) boys = [];
+    boys = boys.map(b => typeof b === 'string' ? {name:b, pin:'4321'} : b);
+    console.log('Boys list:', boys);
+    console.log('Trying login:', name, pin);
+    
+    const found = boys.find(b => 
+      b.name.trim().toLowerCase() === name.toLowerCase() && 
+      String(b.pin).trim() === String(pin).trim()
+    );
+    
+    if(found){
       deliveryBoy = { name: found.name, pin };
+      localStorage.setItem('sm_delivery_boys', JSON.stringify(boys)); // cache
       localStorage.setItem('sm_delivery_session', JSON.stringify(deliveryBoy));
       showApp();
       return;
-    }
-  }catch(e){
-    console.log('DB login failed, trying local:', e);
-  }
-
-  // Fallback: localStorage se try karo
-  const localBoys = JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]');
-  const localBoy = localBoys.find(b => {
-    const bObj = typeof b === 'string' ? {name:b, pin:'4321'} : b;
-    return bObj.name.toLowerCase() === name.toLowerCase() && bObj.pin === pin;
-  });
-  
-  if(!localBoy){
-    // Old system fallback - single PIN
-    const s = JSON.parse(localStorage.getItem('sm_settings') || '{}');
-    const correctPin = s.deliveryPin || '4321';
-    if(pin !== correctPin){
-      document.getElementById('loginErr').textContent = '❌ Naam ya PIN galat hai!';
+    } else {
+      document.getElementById('loginErr').textContent = '❌ Naam ya PIN galat hai! Admin se check karo.';
       document.getElementById('loginErr').style.display = 'block';
       return;
     }
   }
+  
+  // DB se data nahi aaya - localStorage fallback
+  const localBoys = JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]')
+    .map(b => typeof b === 'string' ? {name:b, pin:'4321'} : b);
+  
+  const localFound = localBoys.find(b => 
+    b.name.trim().toLowerCase() === name.toLowerCase() && 
+    String(b.pin).trim() === String(pin).trim()
+  );
+  
+  if(localFound){
+    deliveryBoy = { name: localFound.name, pin };
+    localStorage.setItem('sm_delivery_session', JSON.stringify(deliveryBoy));
+    showApp();
+    return;
+  }
 
-  deliveryBoy = { name, pin };
-  localStorage.setItem('sm_delivery_session', JSON.stringify(deliveryBoy));
-  showApp();
+  document.getElementById('loginErr').textContent = '❌ Login fail — Internet check karo ya Admin se PIN lो';
+  document.getElementById('loginErr').style.display = 'block';
 }
 
 function doLogout(){
