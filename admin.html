@@ -549,7 +549,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
             <h3>🖼️ Banner Slides Manage Karo</h3>
           </div>
           <div style="padding:20px;display:flex;flex-direction:column;gap:12px">
-            <p style="font-size:13px;color:var(--text2);margin:0">Home page ke slider banners — max 5 allowed</p>
+            <p style="font-size:13px;color:var(--text2);margin:0">Home page ke slider banners — max 4 allowed</p>
             <div id="bannerList" style="display:flex;flex-direction:column;gap:10px"></div>
             <button class="btn-primary" onclick="addBanner()" style="width:fit-content;margin-top:4px">➕ Naya Banner Add Karo</button>
           </div>
@@ -1754,8 +1754,8 @@ function printQR(){
     <div id="qr" style="display:inline-block;padding:16px;border:2px solid #1a6dd4;border-radius:12px;margin:20px"></div>
     <p style="font-size:18px;font-weight:bold;color:#1a6dd4">9559868648@ptyes</p>
     <p>PhonePe • GPay • Paytm • BHIM se scan karein</p>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-    <script>new QRCode(document.getElementById('qr'),{text:'upi://pay?pa=9559868648@ptyes&pn=SultanMart&cu=INR',width:200,height:200});<\/script>
+    <scr'+'ipt src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/scr'+'ipt>
+    <scr'+'ipt>new QRCode(document.getElementById('qr'),{text:'upi://pay?pa=9559868648@ptyes&pn=SultanMart&cu=INR',width:200,height:200});<\/scr'+'ipt>
     </body></html>`);
   w.document.close(); setTimeout(()=>w.print(),800);
 }
@@ -2241,11 +2241,55 @@ function resetAdminPassword(){
 }
 
 // ===== SELLER MANAGEMENT =====
-function refreshSellers(){
-  const sellers = JSON.parse(localStorage.getItem('sm_sellers')||'[]');
+async function refreshSellers(){
   const el = document.getElementById('sellersList');
+  if(el) el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text2)">⏳ Loading...</div>';
+  let sellers = [];
+  try{
+    const dbSellers = await sbFetch('sellers?order=created_at.desc');
+    if(dbSellers && dbSellers.length > 0){
+      sellers = dbSellers.map(s=>({
+        id: 'SEL-'+String(s.id).slice(-4),
+        dbId: s.id,
+        shopName: s.shop_name || s.shopName || '',
+        ownerName: s.name || s.ownerName || '',
+        phone: s.phone || '',
+        category: s.categories || s.category || '',
+        commission: s.commission || 5,
+        status: s.status || 'pending'
+      }));
+    }
+  }catch(e){
+    // Try settings table fallback
+    try{
+      const fallback = await sbFetch('settings?key=eq.seller_requests');
+      if(fallback && fallback.length > 0){
+        sellers = JSON.parse(fallback[0].value || '[]').map(s=>({
+          id: 'SEL-'+String(s.id).toString().slice(-4),
+          dbId: s.id,
+          shopName: s.shop_name || '',
+          ownerName: s.name || '',
+          phone: s.phone || '',
+          category: s.categories || '',
+          commission: 5,
+          status: s.status || 'pending'
+        }));
+      }
+    }catch(e2){
+      sellers = JSON.parse(localStorage.getItem('sm_seller_requests')||'[]').map(s=>({
+        id: 'SEL-'+String(s.id).toString().slice(-4),
+        dbId: s.id,
+        shopName: s.shop_name || '',
+        ownerName: s.name || '',
+        phone: s.phone || '',
+        category: s.categories || '',
+        commission: 5,
+        status: s.status || 'pending'
+      }));
+    }
+  }
   if(!sellers.length){
-    el.innerHTML='<div style="text-align:center;padding:30px;color:var(--text2)">Koi seller register nahi hua abhi<br><small>Sellers <strong>seller.html</strong> par register karte hain</small></div>';
+    if(el) el.innerHTML='<div style="text-align:center;padding:30px;color:var(--text2)">Koi seller register nahi hua abhi<br><small>Customer app se "Register as Seller" karke register hote hain</small></div>';
     return;
   }
   el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -2278,18 +2322,1900 @@ function refreshSellers(){
         </span>
       </td>
       <td style="padding:10px">
-        ${s.status!=='blocked'?`<button onclick="toggleSellerStatus('${s.id}','blocked')" style="background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Block</button>`:
-        `<button onclick="toggleSellerStatus('${s.id}','active')" style="background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Unblock</button>`}
+        ${s.status!=='blocked'?`<button onclick="toggleSellerStatus('${s.dbId}','blocked')" style="background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Block</button>`:
+        `<button onclick="toggleSellerStatus('${s.dbId}','active')" style="background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Unblock</button>`}
       </td>
     </tr>`).join('')}</tbody>
   </table>`;
 }
 
-function toggleSellerStatus(sellerId, newStatus){
+async function toggleSellerStatus(sellerId, newStatus){
+  try{
+    await sbFetch('sellers?id=eq.'+sellerId, 'PATCH', {status: newStatus});
+    showToast(newStatus==='blocked'?'❌ Seller block kiya':'✅ Seller active kiya', newStatus==='blocked'?'error':'success');
+  }catch(e){
+    showToast('❌ Error: '+e.message,'error');
+  }
+  refreshSellers();
+}
+
+function updateSellerCommission(sellerId, val){
   const sellers = JSON.parse(localStorage.getItem('sm_sellers')||'[]');
   const idx = sellers.findIndex(s=>s.id===sellerId);
-  if(idx>=0){ sellers[idx].status=newStatus; localStorage.setItem('sm_sellers',JSON.stringify(sellers)); }
-  showToast(newStatus==='blocked'?'❌ Seller block kiya':'✅ Seller active kiya', newStatus==='blocked'?'error':'success');
+  if(idx>=0){ sellers[idx].commission=parseInt(val)||5; localStorage.setItem('sm_sellers',JSON.stringify(sellers)); }
+  showToast('✅ Commission update ho gaya!','success');
+}
+
+// ===== BULK ORDER TRACKING =====
+// Delivery boys list (from orders statusHistory)
+function getDeliveryBoys(){
+  const orders = JSON.parse(localStorage.getItem('sm_all_orders')||'[]');
+  const boys = new Set();
+  orders.forEach(o=>{
+    if(o.assignedTo) boys.add(o.assignedTo);
+    if(o.statusHistory) o.statusHistory.forEach(h=>{ if(h.by) boys.add(h.by); });
+  });
+  return [...boys];
+}
+
+function renderBulkTracking(){
+  ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders')||'[]');
+  
+  // Update delivery boy dropdown
+  const boySelect = document.getElementById('btDeliveryBoy');
+  // Get from both localStorage names AND existing order assignments
+  const savedBoys = JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]');
+  const orderBoys = getDeliveryBoys();
+  const allBoys = [...new Set([...savedBoys, ...orderBoys])];
+  const boys = allBoys;
+  const currentVal = boySelect.value;
+  boySelect.innerHTML='<option value="">All Delivery Boys</option>'+boys.map(b=>`<option value="${b}" ${b===currentVal?'selected':''}>${b}</option>`).join('');
+
+  // Apply filters
+  let orders = [...ALL_ORDERS];
+  const boyFilter = document.getElementById('btDeliveryBoy').value;
+  const statusFilter = document.getElementById('btStatus').value;
+  const dateFilter = document.getElementById('btDate').value;
+  if(boyFilter) orders = orders.filter(o=>o.assignedTo===boyFilter || (o.statusHistory&&o.statusHistory.some(h=>h.by===boyFilter)));
+  if(statusFilter) orders = orders.filter(o=>o.status===statusFilter);
+  if(dateFilter){
+    orders = orders.filter(o=>{
+      try{ return new Date(o.date.split('/').reverse().join('-')).toISOString().slice(0,10)===dateFilter; }catch(e){return true;}
+    });
+  }
+
+  // Summary
+  const totalOrders = orders.length;
+  const delivered = orders.filter(o=>o.status==='delivered').length;
+  const pending = orders.filter(o=>o.status==='delivery').length;
+  const codPending = orders.filter(o=>o.status==='delivery'&&o.payment==='cod').reduce((s,o)=>s+o.total,0);
+  document.getElementById('btSummary').innerHTML=[
+    {n:totalOrders,l:'Total Orders',c:'var(--primary)'},
+    {n:delivered,l:'✅ Delivered',c:'var(--green)'},
+    {n:pending,l:'🚚 Pending',c:'var(--orange)'},
+    {n:'₹'+codPending,l:'💵 COD Pending',c:'#dc2626'},
+  ].map(s=>`<div style="background:var(--card);border-radius:12px;padding:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.07)">
+    <div style="font-family:'Baloo 2',cursive;font-size:24px;font-weight:800;color:${s.c}">${s.n}</div>
+    <div style="font-size:11px;color:var(--text2);margin-top:3px">${s.l}</div>
+  </div>`).join('');
+
+  // Delivery boy cards
+  const deliveryOrders = ALL_ORDERS.filter(o=>o.status==='delivery'||o.assignedTo);
+  const boyGroups = {};
+  deliveryOrders.forEach(o=>{
+    const boy = o.assignedTo || 'Unassigned';
+    if(!boyGroups[boy]) boyGroups[boy]={name:boy,orders:[],delivered:0,pending:0,cod:0};
+    boyGroups[boy].orders.push(o);
+    if(o.status==='delivered') boyGroups[boy].delivered++;
+    else if(o.status==='delivery') { boyGroups[boy].pending++; if(o.payment==='cod') boyGroups[boy].cod+=o.total; }
+  });
+  document.getElementById('btDeliveryBoyCards').innerHTML=Object.values(boyGroups).map(g=>`
+    <div style="background:var(--card);border-radius:12px;padding:14px;margin-bottom:10px;box-shadow:0 2px 8px rgba(0,0,0,.07)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-family:'Baloo 2',cursive;font-size:16px;font-weight:800">🛵 ${g.name}</div>
+        <div style="display:flex;gap:6px">
+          <span style="background:rgba(34,197,94,.15);color:var(--green);border-radius:12px;padding:3px 10px;font-size:12px;font-weight:700">✅ ${g.delivered} delivered</span>
+          <span style="background:rgba(249,115,22,.15);color:var(--orange);border-radius:12px;padding:3px 10px;font-size:12px;font-weight:700">🚚 ${g.pending} pending</span>
+          ${g.cod>0?`<span style="background:rgba(239,68,68,.15);color:var(--red);border-radius:12px;padding:3px 10px;font-size:12px;font-weight:700">💵 ₹${g.cod} COD</span>`:''}
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text2)">
+        ${g.orders.filter(o=>o.status==='delivery').map(o=>`
+          <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)">
+            <span><b>#${o.id}</b> — ${o.customer?.name||o.addr?.name} — ${o.addr?.area||''}</span>
+            <span style="font-weight:700;color:var(--primary)">₹${o.total} ${o.payment==='cod'?'💵':''}</span>
+          </div>`).join('')}
+      </div>
+    </div>`).join('') || '';
+
+  // Order table
+  const sColors={placed:'#dbeafe,#1d4ed8',confirm:'#dcfce7,#16a34a',delivery:'#fff3cd,#b45309',delivered:'#d1fae5,#065f46',cancelled:'#fee2e2,#dc2626'};
+  document.getElementById('btOrderTable').innerHTML=orders.map(o=>{
+    const [bg,fg]=( sColors[o.status]||'#f1f5f9,#475569').split(',');
+    return `<tr style="border-bottom:1px solid var(--border);font-size:12px">
+      <td style="padding:8px 12px;font-weight:700;color:var(--primary)">#${o.id}</td>
+      <td style="padding:8px 12px">${o.customer?.name||o.addr?.name}<br><small style="color:var(--text2)">${o.customer?.phone||o.addr?.phone}</small></td>
+      <td style="padding:8px 12px;color:var(--text2)">${o.addr?.area||'—'}</td>
+      <td style="padding:8px 12px;font-weight:700">₹${o.total}</td>
+      <td style="padding:8px 12px"><span style="background:${o.payment==='cod'?'rgba(251,191,36,.2)':'rgba(34,197,94,.2)'};color:${o.payment==='cod'?'#b45309':'var(--green)'};border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700">${o.payment==='cod'?'💵 COD':'✅ UPI'}</span></td>
+      <td style="padding:8px 12px">
+        <select onchange="assignDeliveryBoy('${o.id}',this.value)" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;font-size:11px;background:var(--card);color:var(--text)">
+          <option value="">Assign...</option>
+          ${[...new Set([...getDeliveryBoyNames(),...getDeliveryBoys()])].map(b=>`<option value="${b}" ${(o.assignedTo===b||o.assigned_to===b)?'selected':''}>${b}</option>`).join('')}
+          <option value="__new__">+ Add Boy</option>
+        </select>
+        ${o.assignedTo?`<div style="font-size:10px;color:var(--green);margin-top:2px">🛵 ${o.assignedTo}</div>`:''}
+      </td>
+      <td style="padding:8px 12px"><span style="background:${bg};color:${fg};border-radius:10px;padding:2px 8px;font-size:10px;font-weight:700">${{placed:'New',confirm:'Confirmed',delivery:'Delivery',delivered:'✅ Done',cancelled:'Cancelled'}[o.status]||o.status}</span></td>
+      <td style="padding:8px 12px">
+        ${o.status==='delivery'?`<button onclick="markDeliveredAdmin('${o.id}')" style="background:rgba(34,197,94,.15);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">✅ Done</button>`:''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function assignDeliveryBoy(orderId, boy){
+  // Empty selection ignore karo
+  if(!boy || boy === '') return;
+  
+  let assignName = boy;
+  if(boy==='__new__'){
+    assignName = prompt('Naya delivery boy ka naam daalo:');
+    if(!assignName || !assignName.trim()) return;
+    assignName = assignName.trim();
+    // Naam save karo list mein
+    const boys = JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]');
+    if(!boys.includes(assignName)){
+      boys.push(assignName);
+      localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
+    }
+  }
+
+  // Current order status check karo
+  ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders')||'[]');
+  const idx = ALL_ORDERS.findIndex(o=>o.id===orderId);
+  const currentStatus = idx>=0 ? ALL_ORDERS[idx].status : 'placed';
+  
+  // Agar already delivered ya cancelled hai to sirf assign karo, status mat badlo
+  const keepStatus = ['delivered','cancelled'].includes(currentStatus);
+  const newStatus = keepStatus ? currentStatus : 'delivery';
+
+  // LocalStorage update
+  if(idx>=0){ 
+    ALL_ORDERS[idx].assignedTo = assignName;
+    ALL_ORDERS[idx].status = newStatus;
+    saveAllOrders(); 
+  }
+  
+  showToast('⏳ ' + assignName + ' ko assign ho raha hai...','success');
+  
+  // DB mein save karo
+  const dbPayload = { 
+    assigned_to: assignName, 
+    updated_at: new Date().toISOString() 
+  };
+  if(!keepStatus) dbPayload.status = 'delivery';
+  
+  try{
+    const assignRes = await fetch(
+      SUPABASE_URL + '/rest/v1/orders?order_number=eq.' + encodeURIComponent(orderId),
+      {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(dbPayload)
+      }
+    );
+    if(assignRes.ok){
+      showToast('✅ ' + assignName + ' ko assign ho gaya! Delivery app mein 15 sec mein dikh jaayega.','success');
+    } else {
+      showToast('⚠️ Local assign hua — DB update fail hua','error');
+    }
+  }catch(e){
+    showToast('⚠️ Local assign hua — internet check karo','error');
+  }
+  renderBulkTracking();
+}
+
+function markDeliveredAdmin(orderId){
+  if(!confirm('Order #'+orderId+' delivered mark karein?')) return;
+  ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders')||'[]');
+  const idx=ALL_ORDERS.findIndex(o=>o.id===orderId);
+  if(idx>=0){
+    ALL_ORDERS[idx].status='delivered';
+    if(!ALL_ORDERS[idx].statusHistory) ALL_ORDERS[idx].statusHistory=[];
+    ALL_ORDERS[idx].statusHistory.push({s:'delivered',t:new Date().toLocaleString('hi-IN'),by:'Admin'});
+    saveAllOrders();
+  }
+  showToast('✅ Delivered mark ho gaya!','success');
+  renderBulkTracking();
+}
+
+function clearBtFilters(){
+  document.getElementById('btDeliveryBoy').value='';
+  document.getElementById('btStatus').value='';
+  document.getElementById('btDate').value='';
+  renderBulkTracking();
+}
+
+function exportBulkReport(){
+  ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders')||'[]');
+  const today = new Date().toLocaleDateString('hi-IN');
+  let csv='Order ID,Customer,Phone,Area,Amount,Payment,Delivery Boy,Status,Date\n';
+  ALL_ORDERS.forEach(o=>{
+    csv+=`#${o.id},"${o.customer?.name||o.addr?.name}","${o.customer?.phone||o.addr?.phone}","${o.addr?.area||''}",${o.total},${o.payment==='cod'?'COD':'UPI'},"${o.assignedTo||'Unassigned'}",${o.status},"${o.date}"\n`;
+  });
+  const blob=new Blob([csv],{type:'text/csv'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download='SultanMart-Orders-'+today+'.csv';
+  a.click(); URL.revokeObjectURL(url);
+  showToast('📥 Report download ho rahi hai!','success');
+}
+
+// ===== DELIVERY AREA MANAGER =====
+const DEFAULT_AREAS_ADMIN = [
+  {id:1, name:'Bharatganj', dist:'0-1 km', charge:0, min:0, active:true},
+  {id:2, name:'Kydganj', dist:'1-2 km', charge:15, min:0, active:true},
+  {id:3, name:'Civil Lines', dist:'2-3 km', charge:20, min:0, active:true},
+  {id:4, name:'Atarsuiya', dist:'2-3 km', charge:20, min:0, active:true},
+  {id:5, name:'Daraganj', dist:'3-4 km', charge:25, min:0, active:true},
+  {id:6, name:'Bahadurganj', dist:'3-4 km', charge:25, min:0, active:true},
+  {id:7, name:'Mumfordganj', dist:'4-5 km', charge:30, min:200, active:true},
+  {id:8, name:'Naini', dist:'5+ km', charge:40, min:300, active:true},
+  {id:9, name:'George Town', dist:'4-5 km', charge:30, min:200, active:true},
+  {id:10, name:'Aur Koi Area', dist:'Batao', charge:30, min:0, active:true},
+];
+let deliveryAreas = [];
+
+function loadDeliveryAreas(){
+  const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
+  deliveryAreas = JSON.parse(JSON.stringify(s.deliveryAreas || DEFAULT_AREAS_ADMIN));
+  renderDeliveryAreas();
+}
+
+function renderDeliveryAreas(){
+  const el = document.getElementById('deliveryAreasList');
+  if(!el) return;
+  const active = deliveryAreas.filter(a=>a.active).length;
+  const ac = document.getElementById('activeAreasCount');
+  if(ac) ac.textContent = active;
+
+  el.innerHTML = deliveryAreas.map((a,i)=>`
+    <div style="background:var(--card2);border:1px solid ${a.active?'rgba(34,197,94,.2)':'var(--border)'};border-radius:10px;padding:12px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <input type="checkbox" ${a.active?'checked':''} onchange="deliveryAreas[${i}].active=this.checked;renderDeliveryAreas()" style="width:18px;height:18px;accent-color:var(--green);cursor:pointer">
+        <span style="font-weight:700;font-size:14px">${a.active?'✅':'❌'} ${a.name}</span>
+        <span style="margin-left:auto;background:${a.charge===0?'rgba(34,197,94,.2)':'rgba(251,100,27,.2)'};color:${a.charge===0?'var(--green)':'var(--accent)'};border-radius:12px;padding:2px 10px;font-size:12px;font-weight:700">${a.charge===0?'FREE':'₹'+a.charge}</span>
+        <button onclick="deliveryAreas.splice(${i},1);renderDeliveryAreas()" style="background:rgba(239,68,68,.15);color:var(--red);border:none;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">🗑️</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:10px;color:var(--text2);margin-bottom:3px">Area/Mohalla Naam</div>
+          <input type="text" value="${a.name}" oninput="deliveryAreas[${i}].name=this.value" style="width:100%;padding:7px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text2);margin-bottom:3px">Distance (jaise 1-2 km)</div>
+          <input type="text" value="${a.dist}" oninput="deliveryAreas[${i}].dist=this.value" style="width:100%;padding:7px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text2);margin-bottom:3px">Delivery Charge (₹0 = FREE)</div>
+          <input type="number" value="${a.charge}" min="0" oninput="deliveryAreas[${i}].charge=parseInt(this.value)||0;renderDeliveryAreas()" style="width:100%;padding:7px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px">
+        </div>
+      </div>
+      <div style="margin-top:8px">
+        <div style="font-size:10px;color:var(--text2);margin-bottom:3px">Minimum Order (₹0 = koi limit nahi) — Is amount se kam order par delivery nahi</div>
+        <input type="number" value="${a.min}" min="0" oninput="deliveryAreas[${i}].min=parseInt(this.value)||0" style="width:160px;padding:7px;background:var(--card);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px" placeholder="0 = No minimum">
+      </div>
+    </div>`).join('');
+}
+
+function addDeliveryArea(){
+  deliveryAreas.push({id:Date.now(), name:'Naya Area', dist:'? km', charge:20, min:0, active:true});
+  renderDeliveryAreas();
+  showToast('✅ Naya area add hua!','success');
+}
+
+async function saveDeliveryAreas(){
+  const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
+  s.deliveryAreas = deliveryAreas;
+  localStorage.setItem('sm_settings', JSON.stringify(s));
+  // Supabase mein save karo - customer site auto update hogi
+  try{
+    await sbFetch('settings?key=eq.shop_settings', 'DELETE');
+    await sbFetch('settings', 'POST', {key:'shop_settings', value:s});
+    showToast('✅ Delivery charge save! Customer site 20 sec mein update hogi.','success');
+  }catch(e){
+    showToast('✅ Delivery areas save ho gayi!','success');
+  }
+}
+
+// ===== LOGO MANAGER =====
+function updateLogoPreview(){
+  document.getElementById('prevEmoji').textContent = document.getElementById('lEmoji').value||'🛒';
+  document.getElementById('prevName').textContent = document.getElementById('lShopName').value||'Sultan Mart';
+  document.getElementById('prevSub').textContent = document.getElementById('lSub').value||'📍 Bharatganj';
+  // Show image in preview if uploaded
+  const imgEl = document.getElementById('prevLogoImg');
+  const emojiEl = document.getElementById('prevEmoji');
+  if(logoImageBase64){
+    imgEl.src = logoImageBase64;
+    imgEl.style.display = 'block';
+    emojiEl.style.display = 'none';
+  } else {
+    imgEl.style.display = 'none';
+    emojiEl.style.display = 'block';
+  }
+}
+function saveLogo(){
+  const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
+  s.shopName = document.getElementById('lShopName').value.trim();
+  s.logoEmoji = document.getElementById('lEmoji').value.trim();
+  s.shopSub = document.getElementById('lSub').value.trim();
+  s.shopPhone = document.getElementById('lPhone').value.trim();
+  if(logoImageBase64) s.logoImage = logoImageBase64;
+  localStorage.setItem('sm_settings', JSON.stringify(s));
+  showToast('✅ Logo save ho gaya! App mein update ho jaayega.','success');
+}
+// Logo image variable
+let logoImageBase64 = null;
+
+function handleLogoUpload(input){
+  const file = input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    logoImageBase64 = e.target.result;
+    document.getElementById('logoPreviewImg').src = logoImageBase64;
+    document.getElementById('logoImgPreview').style.display = 'block';
+    document.getElementById('logoUploadBox').style.display = 'none';
+    // Update preview in header
+    updateLogoPreview();
+    showToast('✅ Logo upload hua!','success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeLogo(){
+  logoImageBase64 = null;
+  document.getElementById('logoImgPreview').style.display = 'none';
+  document.getElementById('logoUploadBox').style.display = 'block';
+  document.getElementById('logoFileInput').value = '';
+  updateLogoPreview();
+}
+
+function loadLogoSettings(){
+  const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
+  if(s.shopName) document.getElementById('lShopName').value = s.shopName;
+  if(s.logoEmoji) document.getElementById('lEmoji').value = s.logoEmoji;
+  if(s.shopSub) document.getElementById('lSub').value = s.shopSub;
+  if(s.shopPhone) document.getElementById('lPhone').value = s.shopPhone;
+  // Load saved logo image
+  if(s.logoImage){
+    logoImageBase64 = s.logoImage;
+    document.getElementById('logoPreviewImg').src = s.logoImage;
+    document.getElementById('logoImgPreview').style.display = 'block';
+    document.getElementById('logoUploadBox').style.display = 'none';
+  }
+  updateLogoPreview();
+}
+
+// ===== DEAL STRIP MANAGER =====
+let dealItems = [];
+function loadDeals(){
+  const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
+  dealItems = s.dealItems || [
+    {id:1, text:'✅ ₹300+ par FREE Delivery', active:true},
+    {id:2, text:'🎁 Pehli Order par 15% Cashback', active:true},
+    {id:3, text:'🌾 Premium Basmati Rice ₹85/kg', active:true},
+    {id:4, text:'🫘 Sari Dal Saste Bhao par', active:true},
+    {id:5, text:'🌶️ Masale Buy 2 Get 1 Free', active:true},
+    {id:6, text:'🥛 Fresh Dahi Roz Available', active:true},
+    {id:7, text:'🚚 Bharatganj Mein Fast Delivery', active:true},
+  ];
+  if(s.dealTag) document.getElementById('dealTagInput').value = s.dealTag;
+  renderDealItems();
+  updateDealPreview();
+}
+function renderDealItems(){
+  document.getElementById('dealItemsList').innerHTML = dealItems.map((d,i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:var(--card2);border-radius:8px;margin-bottom:8px;border:1px solid ${d.active?'rgba(34,197,94,.3)':'var(--border)'}">
+      <input type="checkbox" ${d.active?'checked':''} onchange="dealItems[${i}].active=this.checked;updateDealPreview()" style="width:18px;height:18px;cursor:pointer;accent-color:var(--green)">
+      <input type="text" value="${d.text}" oninput="dealItems[${i}].text=this.value;updateDealPreview()" style="flex:1;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:7px 10px;color:var(--text);font-size:13px;outline:none">
+      <button onclick="dealItems.splice(${i},1);renderDealItems();updateDealPreview()" style="background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:6px 10px;font-size:12px;font-weight:700">🗑️</button>
+    </div>`).join('');
+}
+function addDealItem(){
+  dealItems.push({id:Date.now(), text:'🆕 Naya offer yahan likhein', active:true});
+  renderDealItems(); updateDealPreview();
+  showToast('✅ Naya deal item add hua!','success');
+}
+function updateDealPreview(){
+  const active = dealItems.filter(d=>d.active).map(d=>d.text).join(' | ');
+  document.getElementById('dealPreview').textContent = active || '(Koi active deal nahi)';
+  const tag = document.getElementById('dealTagInput')?.value;
+  if(document.getElementById('dealTagPrev') && tag) document.getElementById('dealTagPrev').textContent = tag;
+}
+async function saveDeals(){
+  const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
+  s.dealItems = dealItems;
+  s.dealTag = document.getElementById('dealTagInput').value;
+  localStorage.setItem('sm_settings', JSON.stringify(s));
+  // Supabase mein save karo - customers ko auto update milega
+  try{
+    await sbFetch('settings?key=eq.shop_settings', 'DELETE');
+    await sbFetch('settings', 'POST', {key:'shop_settings', value:s});
+    showToast('✅ Deals save ho gayi! Customers ko 20 sec mein auto update milega.','success');
+  }catch(e){
+    showToast('✅ Deals save ho gayi!','success');
+  }
+}
+
+function verifyPayment(id){
+  ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders') || '[]');
+  const idx=ALL_ORDERS.findIndex(o=>o.id===id);
+  if(idx<0) return;
+  ALL_ORDERS[idx].paymentStatus='verified';
+  if(!ALL_ORDERS[idx].statusHistory) ALL_ORDERS[idx].statusHistory=[];
+  ALL_ORDERS[idx].statusHistory.push({s:'payment_verified',t:new Date().toLocaleString('hi-IN')});
+  saveAllOrders();
+  showToast('✅ Payment verified!','success');
+  closeModal('modal-order');
+  renderOrdersTable();
+  updateStats();
+}
+
+async function rejectPayment(id){
+  ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders') || '[]');
+  const idx=ALL_ORDERS.findIndex(o=>o.id===id);
+  if(idx<0) return;
+  ALL_ORDERS[idx].paymentStatus='rejected';
+  if(!ALL_ORDERS[idx].statusHistory) ALL_ORDERS[idx].statusHistory=[];
+  ALL_ORDERS[idx].statusHistory.push({s:'payment_rejected',t:new Date().toLocaleString('hi-IN')});
+  saveAllOrders();
+  renderOrdersTable();
+  showToast('❌ Payment reject ho gaya!','error');
+  try{ await updateOrderDB(id, {status: ALL_ORDERS[idx].status, notes: 'payment_rejected'}); }catch(e){}
+}
+
+function saveAllOrders(){localStorage.setItem('sm_all_orders',JSON.stringify(ALL_ORDERS));}
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+function showToast(msg,type=''){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.className='toast show'+(type?' '+type:'');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ===== INIT =====
+updateTime();
+setInterval(updateTime,1000);
+
+// ===== BANNER MANAGEMENT =====
+const DEFAULT_BANNERS = [
+  {id:1, title:'Ghar Ka Ration<br>Ab Aur Sasta!', sub:'Bharatganj ki No.1 Grocery', btn:'Abhi Kharido', color:'#1a6dd4,#0a3d8a', emoji:'🛒', link:''},
+  {id:2, title:'Masalon Ka<br>Maha Sale! 🔥', sub:'20% OFF — Sirf aaj!', btn:'Dekho', color:'#ff6b35,#c0392b', emoji:'🌶️', link:'masale'},
+  {id:3, title:'Fresh Dairy<br>Roz Aata Hai!', sub:'Guaranteed Fresh!', btn:'Order Karo', color:'#26a541,#1a7a2e', emoji:'🥛', link:'dairy'},
+  {id:4, title:'App Install<br>Karo Free!', sub:'Home screen par rakho', btn:'Install Karo', color:'#7c3aed,#4c1d95', emoji:'📱', link:'install'},
+];
+
+function getBanners(){
+  try{ return JSON.parse(localStorage.getItem('sm_banners') || 'null') || DEFAULT_BANNERS; }
+  catch(e){ return DEFAULT_BANNERS; }
+}
+
+function saveBanners(banners){
+  localStorage.setItem('sm_banners', JSON.stringify(banners));
+  // Also sync to Supabase settings
+  sbFetch('settings?key=eq.banners', 'PATCH', {value: JSON.stringify(banners)})
+    .catch(()=> sbFetch('settings', 'POST', {key:'banners', value: JSON.stringify(banners)}));
+}
+
+function renderBannerList(){
+  const banners = getBanners();
+  const el = document.getElementById('bannerList');
+  if(!el) return;
+  el.innerHTML = banners.map((b,i) => `
+    <div style="background:linear-gradient(90deg,${b.color});border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;color:#fff">
+      <div>
+        <div style="font-size:20px">${b.emoji}</div>
+        <div style="font-weight:700;font-size:13px">${b.title.replace('<br>','  ')}</div>
+        <div style="font-size:11px;opacity:.8">${b.sub}</div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="editBanner(${i})" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px">✏️ Edit</button>
+        <button onclick="deleteBanner(${i})" style="background:rgba(255,0,0,.3);border:none;color:#fff;padding:6px 12px;border-radius:8px;cursor:pointer;font-size:12px">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function addBanner(){
+  const title = prompt('Banner ka title (HTML allowed, <br> for new line):','Naya Banner');
+  if(!title) return;
+  const sub = prompt('Sub-title / description:','');
+  const emoji = prompt('Emoji:','🎉');
+  const btn = prompt('Button text:','Dekho');
+  const color = prompt('Background gradient colors (comma separated hex):','#1a6dd4,#0a3d8a');
+  const link = prompt('Click karne par kahan jaaye? (category name ya "install" ya khali choddo):','');
+  
+  const banners = getBanners();
+  if(banners.length >= 5){ showToast('❌ Maximum 5 banners allowed!'); return; }
+  banners.push({id: Date.now(), title, sub, emoji: emoji||'🎉', btn: btn||'Dekho', color: color||'#1a6dd4,#0a3d8a', link: link||''});
+  saveBanners(banners);
+  renderBannerList();
+  showToast('✅ Banner add ho gaya! Customer site reload karo.');
+}
+
+function editBanner(idx){
+  const banners = getBanners();
+  const b = banners[idx];
+  const title = prompt('Title:', b.title);
+  if(!title) return;
+  const sub = prompt('Sub-title:', b.sub);
+  const emoji = prompt('Emoji:', b.emoji);
+  const btn = prompt('Button text:', b.btn);
+  const color = prompt('Colors:', b.color);
+  const link = prompt('Link:', b.link);
+  banners[idx] = {...b, title, sub, emoji: emoji||b.emoji, btn: btn||b.btn, color: color||b.color, link: link||''};
+  saveBanners(banners);
+  renderBannerList();
+  showToast('✅ Banner update ho gaya!');
+}
+
+function deleteBanner(idx){
+  if(!confirm('Yeh banner delete karna chahte ho?')) return;
+  const banners = getBanners();
+  banners.splice(idx, 1);
+  saveBanners(banners);
+  renderBannerList();
+  showToast('🗑️ Banner delete ho gaya!');
+}
+</script>
+</body>
+</html>async function refreshSellers(){
+  const el = document.getElementById('sellersList');
+  el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text2)">⏳ Loading...</div>';
+  let sellers = [];
+  try{
+    const dbSellers = await sbFetch('sellers?order=created_at.desc');
+    if(dbSellers && dbSellers.length > 0){
+      sellers = dbSellers.map(s=>({
+        id: s.id,
+        shopName: s.shop_name || '',
+        ownerName: s.name || '',
+        phone: s.phone || '',
+        category: s.categories || '-',
+        commission: s.commission || 5,
+        status: s.status || 'pending',
+        dbId: s.id
+      }));
+    }
+  }catch(e){
+    // Try settings table fallback
+    try{
+      const fallback = await sbFetch('settings?key=eq.seller_requests');
+      if(fallback && fallback.length > 0){
+        sellers = JSON.parse(fallback[0].value || '[]').map(s=>({
+          id: 'SEL-'+String(s.id).toString().slice(-4),
+          dbId: s.id,
+          shopName: s.shop_name || '',
+          ownerName: s.name || '',
+          phone: s.phone || '',
+          category: s.categories || '',
+          commission: 5,
+          status: s.status || 'pending'
+        }));
+      }
+    }catch(e2){
+      sellers = JSON.parse(localStorage.getItem('sm_seller_requests')||'[]').map(s=>({
+        id: 'SEL-'+String(s.id).toString().slice(-4),
+        dbId: s.id,
+        shopName: s.shop_name || '',
+        ownerName: s.name || '',
+        phone: s.phone || '',
+        category: s.categories || '',
+        commission: 5,
+        status: s.status || 'pending'
+      }));
+    }
+  }
+  if(!sellers.length){
+    el.innerHTML='<div style="text-align:center;padding:30px;color:var(--text2)">Koi seller register nahi hua abhi<br><small>Customer site pe <strong>Account → Register as Seller</strong> se register hota hai</small></div>';
+    return;
+  }
+  el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--card2)">
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Shop Name</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Owner</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Phone</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Category</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Status</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Action</th>
+    </tr></thead>
+    <tbody>${sellers.map(s=>`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px;font-weight:600">🏪 ${s.shopName}</td>
+      <td style="padding:10px">${s.ownerName}</td>
+      <td style="padding:10px"><a href="tel:${s.phone}" style="color:var(--primary)">📞 ${s.phone}</a></td>
+      <td style="padding:10px;font-size:11px">${s.category}</td>
+      <td style="padding:10px">
+        <span style="background:${s.status==='active'?'rgba(34,197,94,.2)':s.status==='blocked'?'rgba(239,68,68,.2)':'rgba(251,191,36,.2)'};
+          color:${s.status==='active'?'var(--green)':s.status==='blocked'?'var(--red)':'#b45309'};
+          border-radius:12px;padding:3px 10px;font-size:11px;font-weight:700">
+          ${s.status==='active'?'✅ Active':s.status==='blocked'?'❌ Blocked':'⏳ Pending'}
+        </span>
+      </td>
+      <td style="padding:10px;display:flex;gap:6px">
+        ${s.status!=='active'?`<button onclick="toggleSellerStatus('${s.dbId}','active')" style="background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">✅ Approve</button>`:''}
+        ${s.status!=='blocked'?`<button onclick="toggleSellerStatus('${s.dbId}','blocked')" style="background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Block</button>`:''}
+      </td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+function doAdminLogin(){
+  const u=document.getElementById('lu').value.trim();
+  const p=document.getElementById('lp').value;
+  // Pehle hardcoded STAFF check karo, phir localStorage
+  let found = STAFF.find(s=>s.username===u&&s.pass===p);
+  if(!found){
+    const localStaff = JSON.parse(localStorage.getItem('sm_staff')||'null');
+    if(localStaff) found = localStaff.find(s=>s.username===u&&s.pass===p);
+  }
+  if(!found){document.getElementById('loginErr').style.display='block';return;}
+  currentAdmin=found;
+  localStorage.setItem('sm_admin_session', JSON.stringify({username:found.username, pass:found.pass}));
+  showAdminUI(found);
+}
+
+function showAdminUI(found){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('sidebar').style.display='flex';
+  document.getElementById('main').style.display='block';
+  document.getElementById('sidebarAv').textContent=found.name[0].toUpperCase();
+  document.getElementById('sidebarName').textContent=found.name;
+  document.getElementById('sidebarRole').textContent=found.role==='admin'?'Super Admin':found.role==='manager'?'Manager':'Staff';
+  initDashboard();
+}
+function adminLogout(){
+  currentAdmin=null;
+  localStorage.removeItem('sm_admin_session');
+  document.getElementById('loginScreen').style.display='flex';
+  document.getElementById('lu').value='';
+  document.getElementById('lp').value='';
+}
+
+// ===== SIDEBAR =====
+let sidebarCollapsed=false;
+function toggleSidebar(){
+  sidebarCollapsed=!sidebarCollapsed;
+  document.getElementById('sidebar').classList.toggle('collapsed',sidebarCollapsed);
+  document.getElementById('main').classList.toggle('expanded',sidebarCollapsed);
+  document.getElementById('toggleBtn').textContent=sidebarCollapsed?'▶':'◀';
+}
+
+// ===== PANEL =====
+const panelTitles={dashboard:'📊 Dashboard',orders:'📦 Orders',products:'🛍️ Products',analytics:'📈 Analytics',payment:'💳 Payment & QR Code',staff:'👥 Staff Management',sellers:'🏪 Seller Management',bulktrack:'📊 Bulk Order Tracking',delivery:'🚚 Delivery Area Manager',logo:'🎨 Logo & Branding',deals:'🔥 Deal Strip Manager',settings:'⚙️ Settings'};
+function showPanel(p){
+  sessionStorage.setItem("sm_last_panel", p);
+  document.querySelectorAll('.panel').forEach(el=>el.classList.remove('on'));
+  document.querySelectorAll('.sitem').forEach(el=>el.classList.remove('on'));
+  document.getElementById('panel-'+p).classList.add('on');
+  document.getElementById('panelTitle').textContent=panelTitles[p]||p;
+  if(p==='orders') renderOrdersTable();
+  if(p==='products') renderProductsAdmin();
+  if(p==='analytics') renderAnalytics();
+  if(p==='staff') renderStaff();
+  if(p==='sellers') refreshSellers();
+  if(p==='bulktrack') renderBulkTracking();
+  if(p==='delivery') loadDeliveryAreas();
+  if(p==='settings'){
+    const s=JSON.parse(localStorage.getItem('sm_settings')||'{}');
+    if(s.secretPin) document.getElementById('sSecretPin').value=s.secretPin;
+    if(s.deliveryPin) document.getElementById('sDeliveryPin').value=s.deliveryPin;
+    renderDeliveryBoys();
+    renderBannerList();
+  }
+  if(p==='logo') loadLogoSettings();
+  if(p==='deliveryreport'){ loadAllOrdersWithDB().then(()=>renderDeliveryReport()); }
+  if(p==='staff'){ loadDeliveryBoysFromDB(); }
+  if(p==='deals') loadDeals();
+}
+
+// ===== DASHBOARD =====
+async function initDashboard(){
+  renderBannerList();
+  // Load staff from DB
+  try{
+    const staffData = await sbFetch('settings?key=eq.staff_list');
+    if(staffData && staffData.length > 0){
+      const dbStaff = JSON.parse(staffData[0].value);
+      if(dbStaff && dbStaff.length > 0){
+        // Merge - keep default admin but add DB staff
+        const defaultIds = [1,2,3];
+        const extraStaff = dbStaff.filter(s=>!defaultIds.includes(s.id));
+        STAFF = [...STAFF.filter(s=>defaultIds.includes(s.id)), ...extraStaff];
+        localStorage.setItem('sm_staff', JSON.stringify(STAFF));
+      }
+    }
+  }catch(e){}
+  // Load from DB first, fallback to localStorage
+  const dbLoaded = await loadAllOrdersWithDB();
+  if(!dbLoaded){
+    ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders') || 'null') || ALL_ORDERS;
+  }
+  PRODUCTS = JSON.parse(localStorage.getItem('sm_products') || 'null') || PRODUCTS;
+  updateStats();
+  renderRecentOrders();
+  renderSalesChart();
+  generateQR();
+  updateTime();
+  setInterval(updateTime, 1000);
+  // Auto refresh orders every 30 seconds
+  setInterval(autoRefreshOrders, 5000); // Orders har 5 second
+  setInterval(updateStats, 15000); // Stats har 15 second
+  checkNewOrders();
+  // Delivery boys DB se load karo
+  loadDeliveryBoysFromDB();
+  // Last panel restore karo
+  const lastPanel = sessionStorage.getItem('sm_last_panel');
+  if(lastPanel){
+    try{ showPanel(lastPanel); }catch(e){ showPanel('dashboard'); }
+  }
+}
+
+async function autoRefreshOrders(){
+  // SIRF DB SE - localStorage BILKUL NAHI
+  try{
+    const res = await fetch(
+      SUPABASE_URL + '/rest/v1/orders?order=created_at.desc&limit=500',
+      { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+    );
+    if(res.ok){
+      const dbOrders = await res.json();
+      if(dbOrders && dbOrders.length > 0){
+        ALL_ORDERS = dbOrders.map(o=>{
+          const items = Array.isArray(o.items) ? o.items : (()=>{try{return JSON.parse(o.items||'[]')}catch(e){return []}})();
+          return {
+            id: o.order_number,
+            dbId: o.id,
+            date: new Date(o.created_at).toLocaleDateString('hi-IN'),
+            time: new Date(o.created_at).toLocaleTimeString('hi-IN',{hour:'2-digit',minute:'2-digit'}),
+            items, total: o.total,
+            status: o.status || 'placed',
+            payment: o.payment_method,
+            assignedTo: o.assigned_to || '',
+            assigned_to: o.assigned_to || '',
+            customer: {name: o.customer_name, phone: o.customer_phone},
+            addr: (()=>{try{return JSON.parse(o.customer_address)}catch(e){return {area:'Bharatganj'}}})()
+          };
+        });
+        // localStorage bhi update karo sync ke liye
+        localStorage.setItem('sm_all_orders', JSON.stringify(ALL_ORDERS));
+      }
+    }
+  }catch(e){ console.log('Refresh failed:', e); }
+  
+  updateStats();
+  renderRecentOrders();
+  checkNewOrders();
+  
+  // Har open panel update karo
+  const activePanels = ['bulktrack','orders','analytics'];
+  activePanels.forEach(p => {
+    const el = document.getElementById('panel-'+p);
+    if(el && el.classList.contains('on')){
+      if(p==='bulktrack') renderBulkTracking();
+      if(p==='orders') renderOrdersTable();
+      if(p==='analytics') renderAnalytics();
+    }
+  });
+  console.log('🔄 DB se refresh:', new Date().toLocaleTimeString(), '| Total:', ALL_ORDERS.length, '| Delivered:', ALL_ORDERS.filter(o=>o.status==='delivered').length, '| Pending:', ALL_ORDERS.filter(o=>o.status==='delivery').length);
+}
+async function updateStats(){
+  // DB se fresh data lo
+  const dbLoaded = await loadAllOrdersWithDB();
+  if(!dbLoaded) ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders') || 'null') || ALL_ORDERS;
+  const total=ALL_ORDERS.length;
+  const revenue=ALL_ORDERS.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+o.total,0);
+  const pending=ALL_ORDERS.filter(o=>o.status==='placed').length;
+  const delivered=ALL_ORDERS.filter(o=>o.status==='delivered').length;
+  const cancelled=ALL_ORDERS.filter(o=>o.status==='cancelled').length;
+  document.getElementById('statsGrid').innerHTML=`
+    <div class="stat-card blue"><div class="stat-ico">📦</div><div class="stat-val">${total}</div><div class="stat-lbl">Total Orders</div><div class="stat-trend trend-up">↑ Aaj 2 naye</div></div>
+    <div class="stat-card green"><div class="stat-ico">💰</div><div class="stat-val">₹${revenue.toLocaleString()}</div><div class="stat-lbl">Total Revenue</div><div class="stat-trend trend-up">↑ ₹1,245 aaj</div></div>
+    <div class="stat-card yellow"><div class="stat-ico">⏳</div><div class="stat-val">${pending}</div><div class="stat-lbl">Pending Orders</div><div class="stat-trend" style="color:var(--yellow)">Abhi confirm karein!</div></div>
+    <div class="stat-card purple"><div class="stat-ico">✅</div><div class="stat-val">${delivered}</div><div class="stat-lbl">Delivered</div><div class="stat-trend trend-up">↑ Achha!</div></div>
+    <div class="stat-card red"><div class="stat-ico">❌</div><div class="stat-val">${cancelled}</div><div class="stat-lbl">Cancelled</div><div class="stat-trend trend-dn">↓ Kam karo</div></div>`;
+}
+function renderRecentOrders(){
+  const recent=ALL_ORDERS.slice(0,5);
+  const sClass={placed:'b-placed',confirm:'b-confirm',delivery:'b-delivery',delivered:'b-delivered',cancelled:'b-cancelled'};
+  const sLabel={placed:'New',confirm:'Confirmed',delivery:'Out for Delivery',delivered:'Delivered',cancelled:'Cancelled'};
+  document.getElementById('recentOrdersTbl').innerHTML=recent.map(o=>`
+    <tr>
+      <td style="color:var(--primary);font-weight:700">#${o.id}</td>
+      <td>${o.customer.name}</td>
+      <td style="font-weight:700">₹${o.total}</td>
+      <td><span class="badge ${sClass[o.status]||'b-placed'}">${sLabel[o.status]||o.status}</span></td>
+    </tr>`).join('');
+}
+function renderSalesChart(){
+  const hours=['8AM','9AM','10AM','11AM','12PM','1PM','2PM','3PM','4PM','5PM','6PM','7PM'];
+  const vals=[320,580,1200,890,1450,760,980,1100,650,880,1340,720];
+  const max=Math.max(...vals);
+  document.getElementById('salesChart').innerHTML=hours.map((h,i)=>`
+    <div class="bar-col">
+      <div class="bar" style="height:${(vals[i]/max)*130}px">
+        <span class="bar-val">₹${vals[i]}</span>
+      </div>
+      <span class="bar-lbl">${h}</span>
+    </div>`).join('');
+}
+function checkNewOrders(){
+  ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders') || 'null') || ALL_ORDERS;
+  const n=ALL_ORDERS.filter(o=>o.status==='placed').length;
+  document.getElementById('newOrderBadge').textContent=n;
+  document.getElementById('newOrderBadge').style.display=n?'inline':'none';
+  document.getElementById('notifDot').style.display=n?'block':'none';
+}
+function updateTime(){
+  const now=new Date();
+  document.getElementById('timeBadge').textContent=now.toLocaleString('hi-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',day:'2-digit',month:'short'});
+}
+
+// ===== ORDERS TABLE =====
+const sClass={placed:'b-placed',confirm:'b-confirm',delivery:'b-delivery',delivered:'b-delivered',cancelled:'b-cancelled',replace:'b-replace'};
+const sLabel={placed:'🆕 New Order',confirm:'✅ Confirmed',delivery:'🚚 Out for Delivery',delivered:'🎉 Delivered',cancelled:'❌ Cancelled',replace:'🔄 Replace Req.'};
+function refreshOrders(){
+  ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders') || '[]') || [];
+  renderOrdersTable();
+  showToast('✅ Orders refresh ho gaye!','success');
+}
+
+function renderOrdersTable(){
+  // Always re-read fresh from localStorage
+  ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders') || '[]') || ALL_ORDERS;
+  const search=document.getElementById('orderSearch').value.toLowerCase();
+  const filter=document.getElementById('orderStatusFilter').value;
+  let orders=ALL_ORDERS.filter(o=>{
+    const matchSearch=!search||(o.id.toLowerCase().includes(search)||o.customer.name.toLowerCase().includes(search));
+    const matchStatus=!filter||(filter==='replace'?o.replaceRequest&&o.status==='delivered':o.status===filter);
+    return matchSearch&&matchStatus;
+  });
+  document.getElementById('ordersTbl').innerHTML=orders.length?orders.map(o=>`
+    <tr>
+      <td style="color:var(--primary);font-weight:700;white-space:nowrap">
+        #${o.id}
+        ${o.payment!=='cod' && o.paymentStatus==='proof_submitted'?'<br><span style="background:rgba(251,191,36,.25);color:#b45309;border-radius:10px;padding:1px 6px;font-size:9px;font-weight:700">📋 Verify?</span>':o.payment!=='cod' && o.paymentStatus==='verified'?'<br><span style="background:rgba(34,197,94,.2);color:var(--green);border-radius:10px;padding:1px 6px;font-size:9px;font-weight:700">✅ Paid</span>':o.payment==='cod'?'<br><span style="background:rgba(251,191,36,.15);color:#b45309;border-radius:10px;padding:1px 6px;font-size:9px;font-weight:700">💵 COD</span>':'<br><span style="background:rgba(239,68,68,.15);color:var(--red);border-radius:10px;padding:1px 6px;font-size:9px;font-weight:700">⏳ Pending</span>'}
+      </td>
+      <td><div style="font-weight:600">${o.customer.name}</div><div style="font-size:11px;color:var(--text2)">📞 ${o.customer.phone}</div></td>
+      <td style="font-size:12px">${o.items.slice(0,2).map(i=>`${i.emoji}${i.name.split(' ').slice(0,2).join(' ')}`).join('<br>')}${o.items.length>2?`<br>+${o.items.length-2} aur...`:''}</td>
+      <td style="font-weight:700;white-space:nowrap">₹${o.total}</td>
+      <td><span style="font-size:12px">${o.payment==='upi'?'💳 UPI':o.payment==='cod'?'💵 COD':'🏦 Net'}</span>${o.utr?`<br><span style="font-size:10px;color:var(--text2)">UTR: ${o.utr}</span>`:''}</td>
+      <td><span class="badge ${sClass[o.replaceRequest&&o.status==='delivered'?'replace':o.status]||'b-placed'}">${sLabel[o.replaceRequest&&o.status==='delivered'?'replace':o.status]||o.status}</span></td>
+      <td style="font-size:11px;color:var(--text2);white-space:nowrap">${o.date}<br>${o.time}</td>
+      <td>
+        <div style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn btn-view btn-sm" onclick="viewOrder('${o.id}')">👁️ View</button>
+          ${o.status==='placed'?`<button class="btn btn-confirm btn-sm" onclick="updateStatus('${o.id}','confirm')">✅ Confirm</button>`:''}
+          ${o.status==='confirm'?`<button class="btn btn-ship btn-sm" onclick="updateStatus('${o.id}','delivery')">🚚 Ship</button>`:''}
+          ${o.status==='delivery'?`<button class="btn btn-deliver btn-sm" onclick="updateStatus('${o.id}','delivered')">📬 Delivered</button>`:''}
+          ${(o.status==='placed'||o.status==='confirm')?`<button class="btn btn-cancel btn-sm" onclick="updateStatus('${o.id}','cancelled')">❌</button>`:''}
+        </div>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text2)">Koi order nahi mila</td></tr>';
+}
+
+async function updateStatus(id, newStatus){
+  const idx=ALL_ORDERS.findIndex(o=>o.id===id);
+  if(idx<0)return;
+  ALL_ORDERS[idx].status=newStatus;
+  if(!ALL_ORDERS[idx].statusHistory) ALL_ORDERS[idx].statusHistory=[];
+  ALL_ORDERS[idx].statusHistory.push({s:newStatus,t:new Date().toLocaleString('hi-IN')});
+  saveAllOrders();
+  renderOrdersTable();
+  checkNewOrders();
+  const labels={confirm:'✅ Order Confirm!',delivery:'🚚 Out for Delivery!',delivered:'🎉 Delivered!',cancelled:'❌ Order Cancelled'};
+  showToast(labels[newStatus]||'Updated!','success');
+  // DB mein turant save karo - warna auto refresh purana status wapas laayega
+  try{
+    await updateOrderDB(id, {status: newStatus});
+    console.log('✅ Order status DB mein save ho gaya:', id, newStatus);
+  }catch(e){
+    console.log('❌ DB save failed:', e);
+  }
+}
+
+
+// ===== PRINT INVOICE =====
+let currentViewOrderId = null;
+
+function printInvoice(){
+  if(!currentViewOrderId) return;
+  const o = ALL_ORDERS.find(x=>x.id===currentViewOrderId);
+  if(!o) return;
+  const items = o.items || [];
+  const subtotal = items.reduce((s,i)=>s+(i.price||i.p||0)*(i.qty||1),0);
+  const delivery = o.delivery || o.deliveryCharge || 0;
+  const total = o.total || subtotal + delivery;
+  const date = o.date || new Date().toLocaleDateString('hi-IN');
+  const time = o.time || '';
+  const addr = o.addr || o.address || {};
+  const customer = o.customer || {};
+
+  const invoiceHTML = `
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Invoice - ${o.id}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #000; padding: 20px; max-width: 400px; margin: 0 auto; }
+  .hdr { text-align:center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 10px; }
+  .hdr h1 { font-size: 22px; font-weight: bold; }
+  .hdr p { font-size: 11px; color: #444; margin-top: 2px; }
+  .info { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 12px; }
+  .customer-box { background: #f5f5f5; padding: 8px; border-radius: 4px; margin-bottom: 10px; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  th { background: #222; color: #fff; padding: 6px 8px; font-size: 12px; text-align: left; }
+  td { padding: 5px 8px; border-bottom: 1px solid #eee; font-size: 12px; }
+  .text-right { text-align: right; }
+  .total-row { font-weight: bold; background: #f9f9f9; }
+  .grand-total { font-size: 16px; font-weight: bold; text-align: right; border-top: 2px solid #000; padding-top: 8px; margin-top: 4px; }
+  .footer { text-align: center; margin-top: 16px; font-size: 11px; color: #666; border-top: 1px dashed #ccc; padding-top: 10px; }
+  .status-badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:bold; background:#d1fae5; color:#065f46; }
+  @media print { body { padding: 0; } }
+</style>
+</head>
+<body>
+<div class="hdr">
+  <h1>🛒 Sultan Mart</h1>
+  <p>Bharatganj, Prayagraj - 212104</p>
+  <p>📞 9559868648 | UPI: 9559868648@ptyes</p>
+</div>
+<div class="info">
+  <div><strong>Invoice:</strong> INV-${o.id}</div>
+  <div><strong>Date:</strong> ${date} ${time}</div>
+</div>
+<div class="customer-box">
+  <strong>Customer:</strong> ${customer.name || o.customerName || '-'}<br>
+  <strong>Phone:</strong> ${customer.phone || o.customerPhone || '-'}<br>
+  <strong>Address:</strong> ${addr.house||''} ${addr.area||addr.areaName||''}<br>
+  <strong>Payment:</strong> ${o.payment==='cod'?'💵 Cash on Delivery':'✅ UPI/Online'} &nbsp;
+  <span class="status-badge">${o.status||'placed'}</span>
+</div>
+<table>
+  <tr>
+    <th>#</th>
+    <th>Item</th>
+    <th class="text-right">Qty</th>
+    <th class="text-right">Price</th>
+    <th class="text-right">Amount</th>
+  </tr>
+  ${items.map((item,i)=>`
+  <tr>
+    <td>${i+1}</td>
+    <td>${item.emoji||item.e||''} ${item.name}</td>
+    <td class="text-right">${item.qty||1} ${item.unit||''}</td>
+    <td class="text-right">₹${item.price||item.p||0}</td>
+    <td class="text-right">₹${(item.price||item.p||0)*(item.qty||1)}</td>
+  </tr>`).join('')}
+  <tr class="total-row">
+    <td colspan="4" class="text-right">Subtotal:</td>
+    <td class="text-right">₹${subtotal}</td>
+  </tr>
+  <tr>
+    <td colspan="4" class="text-right">Delivery:</td>
+    <td class="text-right">${delivery===0?'<span style="color:green">FREE</span>':'₹'+delivery}</td>
+  </tr>
+</table>
+<div class="grand-total">Total: ₹${total}</div>
+<div style="text-align:center;margin:14px 0">
+  <div id="inv-qr-${o.id}" style="display:inline-block"></div>
+  <div style="font-size:10px;color:#666;margin-top:4px">Scan for order verification</div>
+</div>
+<div class="footer">
+  <p>🙏 "Aapka vishwas hamari taakat hai!"</p>
+</div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank', 'width=450,height=700');
+  win.document.write(invoiceHTML);
+  // Load QRCode library dynamically in new window
+  const qrScript = win.document.createElement('script');
+  qrScript.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+  qrScript.onload = function(){
+    try{
+      const qrDiv = win.document.getElementById('inv-qr-'+o.id);
+      if(qrDiv){
+        new win.QRCode(qrDiv, {
+          text: JSON.stringify({id:o.id, name:o.customer?.name||'', phone:o.customer?.phone||'', total:o.total, payment:o.payment, area:o.addr?.area||''}),
+          width:80, height:80,
+          correctLevel: win.QRCode.CorrectLevel.M
+        });
+      }
+    }catch(e){}
+    setTimeout(()=>win.print(), 800);
+  };
+  win.document.head.appendChild(qrScript);
+  win.document.close();
+  win.focus();
+}
+
+function viewOrder(id){
+  const o=ALL_ORDERS.find(x=>x.id===id);
+  if(!o)return;
+  const steps=['placed','confirm','delivery','delivered'];
+  const stepIdx=o.status==='cancelled'?-1:steps.indexOf(o.status);
+  const fillPct=stepIdx<0?0:(stepIdx/(steps.length-1))*100;
+  const trackHtml=o.status!=='cancelled'?`
+    <div class="track-steps" style="position:relative">
+      <div style="position:absolute;top:16px;left:16px;right:16px;height:2px;background:var(--border);z-index:0"></div>
+      <div style="position:absolute;top:16px;left:16px;height:2px;background:var(--green);z-index:1;width:${fillPct}%;transition:width .5s"></div>
+      ${steps.map((s,i)=>`<div class="tstep"><div class="tdot ${i<stepIdx?'done':''} ${i===stepIdx?'active':''}">${i<stepIdx?'✓':i+1}</div><div class="tlbl">${['Order\nPlaced','Confirmed','Delivery','Delivered'][i]}</div></div>`).join('')}
+    </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--text2)">
+      ${o.statusHistory?o.statusHistory.map(h=>`<span style="margin-right:12px">● ${sLabel[h.s]||h.s}: ${h.t}</span>`).join(''):''}
+    </div>`:
+    '<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:10px;color:#fca5a5;font-size:13px">❌ Order Cancelled — Reason: '+(o.cancelReason||'—')+'</div>';
+
+  document.getElementById('orderDetailTitle').textContent=`📦 Order #${o.id}`;
+  document.getElementById('orderDetailBody').innerHTML=`
+    <div style="margin-bottom:16px">${trackHtml}</div>
+    ${o.replaceRequest?`<div style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);border-radius:8px;padding:10px;color:#d8b4fe;font-size:13px;margin-bottom:14px">🔄 Replace Request: ${o.replaceRequest.reason} — ${o.replaceRequest.date}</div>`:''}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+      <div style="background:var(--card2);border-radius:8px;padding:14px">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px;font-weight:700;text-transform:uppercase">Customer Info</div>
+        <div style="font-size:14px;font-weight:700">${o.customer.name}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:4px">📞 ${o.customer.phone}</div>
+        <div style="font-size:12px;color:var(--text2);margin-top:2px">📍 ${o.addr.house}, ${o.addr.area}</div>
+      </div>
+      <div style="background:var(--card2);border-radius:8px;padding:14px">
+        <div style="font-size:11px;color:var(--text2);margin-bottom:8px;font-weight:700;text-transform:uppercase">Payment</div>
+        <div style="font-size:14px;font-weight:700">${o.payment==='upi'?'💳 UPI':o.payment==='cod'?'💵 Cash on Delivery':'🏦 Net Banking'}</div>
+        ${o.utr?`<div style="font-size:12px;color:var(--green);margin-top:4px;font-weight:600">🔢 UTR: ${o.utr}</div>`:''}
+        <div style="margin-top:6px">
+          ${o.payment==='cod'?
+            `<span style="background:rgba(251,191,36,.2);color:#d97706;border-radius:12px;padding:3px 10px;font-size:11px;font-weight:700">💵 COD — Door par lena hai</span>`:
+            o.paymentStatus==='proof_submitted'?
+              `<span style="background:rgba(34,197,94,.2);color:var(--green);border-radius:12px;padding:3px 10px;font-size:11px;font-weight:700">📋 Proof mila — Verify karo</span>`:
+            o.paymentStatus==='verified'?
+              `<span style="background:rgba(34,197,94,.3);color:var(--green);border-radius:12px;padding:3px 10px;font-size:11px;font-weight:700">✅ Payment Verified!</span>`:
+              `<span style="background:rgba(239,68,68,.15);color:var(--red);border-radius:12px;padding:3px 10px;font-size:11px;font-weight:700">⏳ Payment Pending</span>`
+          }
+        </div>
+        ${o.paymentScreenshot?`
+          <div style="margin-top:10px">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:5px;font-weight:600">📸 Payment Screenshot:</div>
+            <img src="${o.paymentScreenshot}" style="width:100%;border-radius:8px;max-height:200px;object-fit:cover;cursor:pointer" onclick="window.open(this.src,'_blank')">
+            <div style="font-size:10px;color:var(--text2);margin-top:3px">Tap karke bada dekho</div>
+          </div>
+          ${o.paymentStatus!=='verified'?`
+          <div style="display:flex;gap:8px;margin-top:10px">
+            <button onclick="verifyPayment('${o.id}')" style="flex:1;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">✅ Payment Verify Karo</button>
+            <button onclick="rejectPayment('${o.id}')" style="flex:1;background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer">❌ Reject Karo</button>
+          </div>`:
+          `<div style="background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:8px;margin-top:8px;font-size:12px;color:var(--green);font-weight:600;text-align:center">✅ Payment Verified!</div>`}
+        `:''}
+        ${!o.paymentScreenshot && o.payment!=='cod' && o.paymentStatus!=='verified'?`
+          <div style="margin-top:8px">
+            ${o.utr?
+              `<button onclick="verifyPayment('${o.id}')" style="width:100%;background:linear-gradient(135deg,#16a34a,#15803d);color:#fff;border:none;border-radius:8px;padding:9px;font-size:13px;font-weight:700;cursor:pointer;margin-top:6px">✅ UTR se Verify Karo</button>`:
+              `<div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:8px;font-size:11px;color:var(--red)">⚠️ Customer ne koi proof nahi diya — manually apne phone pe check karo</div>`
+            }
+          </div>
+        `:''}
+        <div style="font-size:12px;color:var(--text2);margin-top:6px">📅 ${o.date} ${o.time}</div>
+      </div>
+    </div>
+    <div style="background:var(--card2);border-radius:8px;padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:10px;font-weight:700;text-transform:uppercase">Order Items</div>
+      ${o.items.map(it=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px"><span>${it.emoji} ${it.name} ×${it.qty}</span><span style="font-weight:700">₹${it.price*it.qty}</span></div>`).join('')}
+      <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;color:var(--text2)"><span>Delivery</span><span>${o.delivery===0?'FREE':'₹'+o.delivery}</span></div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:15px;font-weight:700;border-top:1px solid var(--border);margin-top:4px"><span>TOTAL</span><span style="color:var(--primary)">₹${o.total}</span></div>
+    </div>
+    ${o.status!=='delivered'&&o.status!=='cancelled'?`
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${o.status==='placed'?`<button class="btn btn-confirm" onclick="updateStatus('${o.id}','confirm');closeModal('modal-order')">✅ Confirm Order</button>`:''}
+      ${o.status==='confirm'?`<button class="btn btn-ship" onclick="updateStatus('${o.id}','delivery');closeModal('modal-order')">🚚 Ship Karo</button>`:''}
+      ${o.status==='delivery'?`<button class="btn btn-deliver" onclick="updateStatus('${o.id}','delivered');closeModal('modal-order')">📬 Mark Delivered</button>`:''}
+      ${(o.status==='placed'||o.status==='confirm')?`<button class="btn btn-cancel" onclick="updateStatus('${o.id}','cancelled');closeModal('modal-order')">❌ Cancel Karo</button>`:''}
+    </div>`:''}`;
+  currentViewOrderId = id;
+  openModal('modal-order');
+}
+
+// ===== PRODUCTS =====
+function renderProductsAdmin(){
+  const q=document.getElementById('prodSearch').value.toLowerCase();
+  const cat=document.getElementById('prodCatFilter').value;
+  let prods=PRODUCTS.filter(p=>
+    (!q||(p.name.toLowerCase().includes(q)||p.brand.toLowerCase().includes(q)))&&
+    (!cat||p.cat===cat)
+  );
+  document.getElementById('prodAdminGrid').innerHTML=prods.map(p=>{
+    const disc=p.m>p.p?Math.round((p.m-p.p)/p.m*100):0;
+    return `<div class="prod-admin-card">
+      <div class="pac-img">${p.e}</div>
+      <div class="pac-info">
+        <div class="pac-name">${p.name}</div>
+        <div class="pac-brand">${p.brand} • ${p.unit||''}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+          <span class="pac-price">₹${p.p}</span>
+          ${disc?`<span class="pac-mrp">₹${p.m}</span><span style="font-size:11px;color:var(--green);font-weight:700">${disc}% off</span>`:''}
+        </div>
+        <div>
+          <span class="pac-stock ${(p.stock||0)>0?'in-stock':'out-stock'}">${(p.stock||0)>0?`✅ ${p.stock} in stock`:'❌ Out of Stock'}</span>
+        </div>
+        <div class="pac-actions">
+          <button class="btn btn-view btn-sm" onclick="editProd(${p.id})" style="flex:1">✏️ Edit</button>
+          <button class="btn btn-cancel btn-sm" onclick="deleteProd(${p.id})">🗑️</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+function openAddProduct(){
+  document.getElementById('prodModalTitle').textContent='➕ Naya Product Add Karo';
+  document.getElementById('editProdId').value='';
+  ['pName','pBrand','pPrice','pMrp','pStock','pUnit','pDesc'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pEmoji').value='📦';
+  document.getElementById('pImgUrl').value='';
+  document.getElementById('imgPreview').style.display='none';
+  document.getElementById('pImgFile')._dataUrl='';
+  document.getElementById('pDisc').value='';
+  document.getElementById('pBadge').value='';
+  openModal('modal-product');
+  showPanel('products');
+}
+function editProd(id){
+  const p=PRODUCTS.find(x=>x.id===id);if(!p)return;
+  document.getElementById('prodModalTitle').textContent='✏️ Product Edit Karo';
+  document.getElementById('editProdId').value=id;
+  document.getElementById('pName').value=p.name;
+  document.getElementById('pBrand').value=p.brand;
+  document.getElementById('pCat').value=p.cat;
+  document.getElementById('pEmoji').value=p.e;
+  document.getElementById('pPrice').value=p.p;
+  document.getElementById('pMrp').value=p.m;
+  document.getElementById('pStock').value=p.stock||0;
+  document.getElementById('pUnit').value=p.unit||'';
+  document.getElementById('pImgUrl').value=p.img&&!p.img.startsWith('data:')?p.img:'';
+  if(p.img){
+    document.getElementById('imgPreviewEl').src=p.img;
+    document.getElementById('imgPreview').style.display='block';
+    document.getElementById('imgStatus').textContent='Existing image loaded';
+    document.getElementById('pImgFile')._dataUrl=p.img.startsWith('data:')?p.img:'';
+  } else {
+    document.getElementById('imgPreview').style.display='none';
+    document.getElementById('pImgFile')._dataUrl='';
+  }
+  document.getElementById('pDesc').value=p.desc||'';
+  openModal('modal-product');
+}
+async function saveProd(){
+  const name=document.getElementById('pName').value.trim();
+  const brand=document.getElementById('pBrand').value.trim();
+  const price=parseInt(document.getElementById('pPrice').value);
+  const mrp=parseInt(document.getElementById('pMrp').value);
+  if(!name||!brand||!price||!mrp){showToast('❌ Naam, Brand, Price aur MRP zaroori hai!','error');return;}
+  const editId=document.getElementById('editProdId').value;
+  const fileInput = document.getElementById('pImgFile');
+  const imgData = (fileInput._dataUrl) || document.getElementById('pImgUrl').value.trim() || '';
+  const prod={
+    name,brand,cat:document.getElementById('pCat').value,
+    e:document.getElementById('pEmoji').value||'📦',
+    p:price,m:mrp,stock:parseInt(document.getElementById('pStock').value)||0,
+    unit:document.getElementById('pUnit').value,desc:document.getElementById('pDesc').value,
+    badge:document.getElementById('pBadge').value,
+    img: imgData
+  };
+  if(editId){
+    const idx=PRODUCTS.findIndex(x=>x.id==editId);
+    if(idx>=0){PRODUCTS[idx]={...PRODUCTS[idx],...prod};showToast('✅ Product update ho gaya!','success');}
+  } else {
+    prod.id=Date.now();
+    PRODUCTS.push(prod);
+    showToast('✅ Naya product add ho gaya!','success');
+  }
+  saveProducts();
+  // Supabase mein sync karo - customer ko auto update milega
+  try{
+    const dbProd = {
+      name: prod.name,
+      price: prod.p,
+      mrp: prod.m,
+      unit: prod.unit,
+      category: prod.cat,
+      emoji: prod.e,
+      image: prod.img||null,
+      stock: prod.stock,
+      active: true
+    };
+    if(editId && parseInt(editId) > 1000000){ // localStorage id
+      // Old localStorage product - add as new in DB
+      await sbFetch('products', 'POST', dbProd);
+    } else if(editId){
+      await sbFetch('products?id=eq.'+editId, 'PATCH', dbProd);
+    } else {
+      await sbFetch('products', 'POST', dbProd);
+    }
+    // Re-seed all products to DB for full sync
+    await syncAllProductsToDB();
+  }catch(e){ console.log('Product DB sync failed:', e); }
+  closeModal('modal-product');
+  renderProductsAdmin();
+}
+
+async function deleteProd(id){
+  if(!confirm('Kya aap is product ko delete karna chahte hain?'))return;
+  PRODUCTS=PRODUCTS.filter(p=>p.id!==id);
+  saveProducts();
+  renderProductsAdmin();
+  showToast('🗑️ Product delete ho gaya!');
+  // DB se bhi delete karo
+  try{
+    await sbFetch('products?id=eq.'+id, 'DELETE');
+    await syncAllProductsToDB();
+  }catch(e){}
+}
+function saveProducts(){localStorage.setItem('sm_products',JSON.stringify(PRODUCTS));}
+
+// ===== ANALYTICS =====
+function renderAnalytics(){
+  const revenue=ALL_ORDERS.filter(o=>o.status!=='cancelled').reduce((s,o)=>s+o.total,0);
+  const avgOrder=ALL_ORDERS.length?Math.round(revenue/ALL_ORDERS.length):0;
+  document.getElementById('analyticsStats').innerHTML=`
+    <div class="stat-card green"><div class="stat-ico">💰</div><div class="stat-val">₹${revenue.toLocaleString()}</div><div class="stat-lbl">Total Revenue</div></div>
+    <div class="stat-card blue"><div class="stat-ico">📦</div><div class="stat-val">${ALL_ORDERS.length}</div><div class="stat-lbl">Total Orders</div></div>
+    <div class="stat-card yellow"><div class="stat-ico">📊</div><div class="stat-val">₹${avgOrder}</div><div class="stat-lbl">Avg Order Value</div></div>
+    <div class="stat-card purple"><div class="stat-ico">👥</div><div class="stat-val">${new Set(ALL_ORDERS.map(o=>o.customer.phone)).size}</div><div class="stat-lbl">Unique Customers</div></div>`;
+
+  // Weekly chart
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const vals=[1200,1800,1450,2100,1680,2800,2200];
+  const max=Math.max(...vals);
+  document.getElementById('weeklyChart').innerHTML=days.map((d,i)=>`
+    <div class="bar-col">
+      <div class="bar" style="height:${(vals[i]/max)*130}px"><span class="bar-val">₹${vals[i]}</span></div>
+      <span class="bar-lbl">${d}</span>
+    </div>`).join('');
+
+  // Top products
+  const prodSales={};
+  ALL_ORDERS.filter(o=>o.status!=='cancelled').forEach(o=>o.items.forEach(it=>{
+    if(!prodSales[it.name])prodSales[it.name]={sold:0,rev:0};
+    prodSales[it.name].sold+=it.qty;prodSales[it.name].rev+=it.price*it.qty;
+  }));
+  const top=Object.entries(prodSales).sort((a,b)=>b[1].rev-a[1].rev).slice(0,8);
+  document.getElementById('topProdsTbl').innerHTML=top.map(([name,d])=>`
+    <tr><td style="font-size:12px">${name}</td><td style="font-weight:700;color:var(--green)">${d.sold}</td><td style="font-weight:700;color:var(--primary)">₹${d.rev}</td></tr>`).join('');
+
+  // Status breakdown
+  const statCount={placed:0,confirm:0,delivery:0,delivered:0,cancelled:0};
+  ALL_ORDERS.forEach(o=>statCount[o.status]=(statCount[o.status]||0)+1);
+  const statColors={placed:'var(--primary)',confirm:'var(--green)',delivery:'var(--yellow)',delivered:'#4ade80',cancelled:'var(--red)'};
+  document.getElementById('statusBreakdown').innerHTML=Object.entries(statCount).map(([s,c])=>`
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="width:12px;height:12px;border-radius:3px;background:${statColors[s]};flex-shrink:0"></div>
+      <div style="flex:1;font-size:13px">${sLabel[s]||s}</div>
+      <div style="background:var(--card2);border-radius:12px;padding:2px 10px;font-size:12px;font-weight:700">${c}</div>
+    </div>`).join('');
+
+  // Payment breakdown
+  const payCount={upi:0,cod:0,net:0};
+  ALL_ORDERS.forEach(o=>payCount[o.payment]=(payCount[o.payment]||0)+1);
+  const payLabel={upi:'💳 UPI',cod:'💵 Cash on Delivery',net:'🏦 Net Banking'};
+  document.getElementById('paymentBreakdown').innerHTML=Object.entries(payCount).map(([p,c])=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+      <span>${payLabel[p]||p}</span>
+      <span style="font-weight:700;color:var(--primary)">${c} orders</span>
+    </div>`).join('');
+}
+
+// ===== QR CODE =====
+function generateQR(){
+  const div=document.getElementById('qrCodeDiv');
+  if(!div)return;
+  div.innerHTML='';
+  try{
+    new QRCode(div,{text:'upi://pay?pa=9559868648@ptyes&pn=SultanMart&cu=INR',width:160,height:160,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.H});
+  }catch(e){div.innerHTML='<div style="color:#666;font-size:12px;padding:20px">QR Code</div>';}
+}
+function printQR(){
+  const w=window.open('','_blank');
+  w.document.write(`<html><head><title>Sultan Mart QR</title><style>body{text-align:center;padding:40px;font-family:Arial}h2{color:#1a6dd4}p{color:#666;font-size:14px}</style></head><body>
+    <h2>🛒 Sultan Mart</h2><p>Bharatganj, Prayagraj</p>
+    <div id="qr" style="display:inline-block;padding:16px;border:2px solid #1a6dd4;border-radius:12px;margin:20px"></div>
+    <p style="font-size:18px;font-weight:bold;color:#1a6dd4">9559868648@ptyes</p>
+    <p>PhonePe • GPay • Paytm • BHIM se scan karein</p>
+    <scr'+'ipt src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/scr'+'ipt>
+    <scr'+'ipt>new QRCode(document.getElementById('qr'),{text:'upi://pay?pa=9559868648@ptyes&pn=SultanMart&cu=INR',width:200,height:200});<\/scr'+'ipt>
+    </body></html>`);
+  w.document.close(); setTimeout(()=>w.print(),800);
+}
+function downloadQR(){
+  const canvas=document.querySelector('#qrCodeDiv canvas');
+  if(!canvas){showToast('❌ QR generate hone do!','error');return;}
+  const a=document.createElement('a');a.download='SultanMart-QR.png';a.href=canvas.toDataURL();a.click();
+  showToast('✅ QR download ho gaya!','success');
+}
+
+// ===== STAFF =====
+function renderStaff(){
+  const roleClass={admin:'role-admin',manager:'role-manager',staff:'role-staff',delivery:'role-staff'};
+  const roleLabel={admin:'Super Admin',manager:'Manager',staff:'Staff',delivery:'Delivery Boy'};
+  document.getElementById('staffList').innerHTML=STAFF.map(s=>`
+    <div class="staff-card">
+      <div class="staff-av2">${s.name[0]}</div>
+      <div class="staff-det">
+        <h4>${s.name} <span class="role-badge ${roleClass[s.role]||'role-staff'}">${roleLabel[s.role]||s.role}</span></h4>
+        <p>@${s.username} • 📞 ${s.phone}</p>
+      </div>
+      ${s.role!=='admin'&&currentAdmin?.role==='admin'?`<button class="btn btn-cancel btn-sm" onclick="removeStaff(${s.id})">🗑️ Remove</button>`:''}
+    </div>`).join('');
+}
+function openAddStaff(){openModal('modal-staff');}
+async function addStaff(){
+  const name=document.getElementById('stName').value.trim();
+  const phone=document.getElementById('stPhone').value.trim();
+  const user=document.getElementById('stUser').value.trim();
+  const pass=document.getElementById('stPass').value;
+  const role=document.getElementById('stRole').value;
+  if(!name||!user||!pass){showToast('❌ Saari details bharein!','error');return;}
+  if(STAFF.find(s=>s.username===user)){showToast('❌ Yeh username already hai!','error');return;}
+  STAFF.push({id:Date.now(),name,phone,username:user,pass,role});
+  localStorage.setItem('sm_staff',JSON.stringify(STAFF));
+  try{
+    const ex=await sbFetch('settings?key=eq.staff_list');
+    if(ex&&ex.length>0) await sbFetch('settings?key=eq.staff_list','PATCH',{value:JSON.stringify(STAFF)});
+    else await sbFetch('settings','POST',{key:'staff_list',value:JSON.stringify(STAFF)});
+  }catch(e){}
+  closeModal('modal-staff');
+  renderStaff();
+  showToast('✅ Staff add ho gaya!','success');
+}
+async function removeStaff(id){
+  if(!confirm('Staff remove karein?'))return;
+  STAFF=STAFF.filter(s=>s.id!==id);
+  localStorage.setItem('sm_staff',JSON.stringify(STAFF));
+  try{
+    await sbFetch('settings?key=eq.staff_list','PATCH',{value:JSON.stringify(STAFF)});
+  }catch(e){}
+  renderStaff();
+  showToast('🗑️ Staff remove ho gaya!');
+}
+
+// ===== SETTINGS =====
+
+// Sync all products to Supabase
+async function syncAllProductsToDB(){
+  try{
+    // Delete all existing
+    await sbFetch('products', 'DELETE', null, {'Prefer':'return=minimal'});
+    // Re-insert all
+    for(const p of PRODUCTS){
+      await sbFetch('products', 'POST', {
+        name: p.name,
+        price: p.p,
+        mrp: p.m||null,
+        unit: p.unit||'',
+        category: p.cat||'other',
+        emoji: p.e||'📦',
+        image: p.img||null,
+        stock: p.stock||100,
+        active: true
+      });
+    }
+    console.log('✅ All products synced to DB!');
+  }catch(e){ console.log('Sync failed:', e); }
+}
+
+
+// ===== DELIVERY BOY REPORT =====
+function renderDeliveryReport(){
+  const filter = document.getElementById('drDateFilter')?.value || 'all';
+  const now = new Date();
+
+  // Filter orders by date
+  let orders = ALL_ORDERS.filter(o => {
+    if(filter === 'all') return true;
+    const d = new Date(o.created_at || o.date);
+    if(filter === 'today'){
+      return d.toDateString() === now.toDateString();
+    } else if(filter === 'week'){
+      const weekAgo = new Date(now - 7*24*60*60*1000);
+      return d >= weekAgo;
+    } else if(filter === 'month'){
+      return d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear();
+    }
+    return true;
+  });
+
+  // Group by delivery boy
+  const boyMap = {};
+  orders.forEach(o => {
+    const boy = o.assignedTo || o.assigned_to || 'Unassigned';
+    if(!boyMap[boy]) boyMap[boy] = {name:boy, delivered:0, cancelled:0, pending:0, cod:0, orders:[]};
+    if(o.status === 'delivered'){
+      boyMap[boy].delivered++;
+      if(o.payment === 'cod') boyMap[boy].cod += (o.total||0);
+    } else if(o.status === 'cancelled'){
+      boyMap[boy].cancelled++;
+    } else if(o.status === 'delivery'){
+      boyMap[boy].pending++;
+    }
+    boyMap[boy].orders.push(o);
+  });
+
+  const boys = Object.values(boyMap);
+  const el = document.getElementById('deliveryReportBody');
+  if(!el) return;
+
+  if(!boys.length){
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text2)">📦 Koi data nahi mila</div>';
+    return;
+  }
+
+  // Summary cards
+  const totalDelivered = boys.reduce((s,b)=>s+b.delivered,0);
+  const totalCancelled = boys.reduce((s,b)=>s+b.cancelled,0);
+  const totalPending = boys.reduce((s,b)=>s+b.pending,0);
+  const totalCOD = boys.reduce((s,b)=>s+b.cod,0);
+
+  el.innerHTML = `
+    <!-- Summary -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:28px;font-weight:800;color:#10b981">${totalDelivered}</div>
+        <div style="font-size:12px;color:var(--text2)">Total Delivered</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:28px;font-weight:800;color:#ef4444">${totalCancelled}</div>
+        <div style="font-size:12px;color:var(--text2)">Total Cancelled</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:28px;font-weight:800;color:#f97316">${totalPending}</div>
+        <div style="font-size:12px;color:var(--text2)">Pending</div>
+      </div>
+      <div class="card" style="text-align:center;padding:16px">
+        <div style="font-size:28px;font-weight:800;color:#1a6dd4">₹${totalCOD}</div>
+        <div style="font-size:12px;color:var(--text2)">Total COD</div>
+      </div>
+    </div>
+
+    <!-- Per Boy Table -->
+    <div class="card" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:var(--sidebar)">
+            <th style="padding:10px 12px;text-align:left;font-weight:700">🛵 Delivery Boy</th>
+            <th style="padding:10px 12px;text-align:center;color:#10b981">✅ Delivered</th>
+            <th style="padding:10px 12px;text-align:center;color:#ef4444">❌ Cancelled</th>
+            <th style="padding:10px 12px;text-align:center;color:#f97316">⏳ Pending</th>
+            <th style="padding:10px 12px;text-align:center;color:#1a6dd4">💰 COD Collected</th>
+            <th style="padding:10px 12px;text-align:center">📊 Success %</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${boys.filter(b=>b.name!=='Unassigned').map(b => {
+            const total = b.delivered + b.cancelled + b.pending;
+            const pct = total > 0 ? Math.round((b.delivered/total)*100) : 0;
+            const pctColor = pct>=80?'#10b981':pct>=50?'#f97316':'#ef4444';
+            return `<tr style="border-bottom:1px solid var(--border)">
+              <td style="padding:10px 12px;font-weight:600">${b.name}</td>
+              <td style="padding:10px 12px;text-align:center">
+                <span style="background:rgba(16,185,129,.1);color:#10b981;padding:3px 10px;border-radius:20px;font-weight:700">${b.delivered}</span>
+              </td>
+              <td style="padding:10px 12px;text-align:center">
+                <span style="background:rgba(239,68,68,.1);color:#ef4444;padding:3px 10px;border-radius:20px;font-weight:700">${b.cancelled}</span>
+              </td>
+              <td style="padding:10px 12px;text-align:center">
+                <span style="background:rgba(249,115,22,.1);color:#f97316;padding:3px 10px;border-radius:20px;font-weight:700">${b.pending}</span>
+              </td>
+              <td style="padding:10px 12px;text-align:center;font-weight:700">₹${b.cod}</td>
+              <td style="padding:10px 12px;text-align:center">
+                <span style="color:${pctColor};font-weight:800;font-size:15px">${pct}%</span>
+              </td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function exportDeliveryReport(){
+  const filter = document.getElementById('drDateFilter')?.value || 'all';
+  let rows = [['Delivery Boy','Delivered','Cancelled','Pending','COD Collected','Success %']];
+  const now = new Date();
+  const boyMap = {};
+  ALL_ORDERS.forEach(o => {
+    const d = new Date(o.created_at || o.date);
+    if(filter==='today' && d.toDateString()!==now.toDateString()) return;
+    if(filter==='week' && d < new Date(now-7*24*60*60*1000)) return;
+    if(filter==='month' && (d.getMonth()!==now.getMonth()||d.getFullYear()!==now.getFullYear())) return;
+    const boy = o.assignedTo || o.assigned_to || 'Unassigned';
+    if(!boyMap[boy]) boyMap[boy]={delivered:0,cancelled:0,pending:0,cod:0};
+    if(o.status==='delivered'){boyMap[boy].delivered++;if(o.payment==='cod')boyMap[boy].cod+=(o.total||0);}
+    else if(o.status==='cancelled') boyMap[boy].cancelled++;
+    else if(o.status==='delivery') boyMap[boy].pending++;
+  });
+  Object.entries(boyMap).forEach(([name,b])=>{
+    const total=b.delivered+b.cancelled+b.pending;
+    const pct=total>0?Math.round((b.delivered/total)*100):0;
+    rows.push([name,b.delivered,b.cancelled,b.pending,'₹'+b.cod,pct+'%']);
+  });
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='delivery_report_'+new Date().toLocaleDateString('en-IN').replace(/\//g,'-')+'.csv';
+  a.click();
+  showToast('✅ Report download ho gayi!','success');
+}
+
+// ===== DELIVERY BOY MANAGEMENT =====
+function getDeliveryBoysList(){
+  const raw = JSON.parse(localStorage.getItem('sm_delivery_boys')||'[]');
+  // Handle both old format (array of strings) and new format (array of objects)
+  return raw.map(b => typeof b === 'string' ? {name:b, pin:'1234'} : b);
+}
+function getDeliveryBoyNames(){
+  return getDeliveryBoysList().map(b=>b.name);
+}
+
+async function saveDeliveryBoystoDB(boys){
+  try{
+    // Direct fetch with UPSERT - most reliable
+    const res = await fetch(SUPABASE_URL + '/rest/v1/settings', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify({key: 'delivery_boys', value: boys})
+    });
+    if(!res.ok){
+      const err = await res.text();
+      console.error('Save failed:', err);
+      return false;
+    }
+    console.log('✅ Boys saved to DB:', boys);
+    return true;
+  }catch(e){
+    console.error('Boys save to DB failed:', e);
+    return false;
+  }
+}
+
+async function loadDeliveryBoysFromDB(){
+  try{
+    const data = await sbFetch('settings?key=eq.delivery_boys');
+    if(data && data.length>0){
+      let boys = data[0].value;
+      if(typeof boys === 'string') boys = JSON.parse(boys);
+      if(!Array.isArray(boys)) boys = [];
+      // Normalize: purana format string tha, naya object hai
+      boys = boys.map(b => typeof b === 'string' ? {name:b, pin:'1234'} : b);
+      localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
+      renderDeliveryBoys();
+      console.log('✅ Delivery boys DB se loaded:', boys);
+    }
+  }catch(e){
+    console.log('DB boys load failed:', e);
+  }
+}
+async function addDeliveryBoy(){
+  const name = document.getElementById('newDeliveryBoyName').value.trim();
+  const pin = document.getElementById('newDeliveryBoyPin').value.trim();
+  if(!name){ showToast('❌ Naam daalo!','error'); return; }
+  if(!pin || pin.length !== 4 || isNaN(pin)){ showToast('❌ 4 digit PIN daalo!','error'); return; }
+  const boys = getDeliveryBoysList();
+  if(boys.find(b=>b.name===name)){ showToast('❌ Yeh naam pehle se hai!','error'); return; }
+  if(boys.find(b=>b.pin===pin)){ showToast('❌ Yeh PIN pehle se kisi aur ka hai!','error'); return; }
+  boys.push({name, pin});
+  localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
+  document.getElementById('newDeliveryBoyName').value='';
+  document.getElementById('newDeliveryBoyPin').value='';
+  renderDeliveryBoys();
+  showToast('⏳ Save ho raha hai...','success');
+  const ok = await saveDeliveryBoystoDB(boys);
+  if(ok){
+    showToast('✅ '+name+' (PIN:'+pin+') add ho gaya! Refresh ke baad bhi rahega.','success');
+  } else {
+    showToast('⚠️ '+name+' add hua lekin DB save nahi hua — internet check karo','error');
+  }
+}
+async function editDeliveryBoyPin(name, currentPin){
+  const newPin = prompt(`${name} ka naya PIN daalo (4 digit):`, currentPin);
+  if(!newPin) return;
+  if(!/^\d{4}$/.test(newPin)){
+    showToast('❌ PIN 4 digit ka hona chahiye!');
+    return;
+  }
+  if(newPin === currentPin){
+    showToast('⚠️ Naya PIN same hai!');
+    return;
+  }
+  // PIN update karo - naam same rakho (record safe!)
+  const boys = getDeliveryBoysList();
+  const idx = boys.findIndex(b => b.name.toLowerCase() === name.toLowerCase());
+  if(idx >= 0){
+    boys[idx].pin = newPin;
+    saveDeliveryBoystoDB(boys);
+    showToast(`✅ ${name} ka PIN update ho gaya!`);
+    renderDeliveryBoys();
+  }
+}
+
+async function removeDeliveryBoy(name){
+  const boys = getDeliveryBoysList().filter(b=>b.name!==name);
+  localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
+  renderDeliveryBoys();
+  const ok = await saveDeliveryBoystoDB(boys);
+  if(ok){
+    showToast('🗑️ '+name+' remove ho gaya!','success');
+  } else {
+    showToast('🗑️ '+name+' remove hua (DB sync nahi hua)','error');
+  }
+}
+function renderDeliveryBoys(){
+  const boys = getDeliveryBoysList();
+  const el = document.getElementById('deliveryBoysList');
+  if(!el) return;
+  if(!boys.length){
+    el.innerHTML='<div style="font-size:12px;color:#94a3b8;padding:8px 0">Koi delivery boy nahi — Naam aur PIN daalo aur Add karo!</div>';
+    return;
+  }
+  el.innerHTML = boys.map(b=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:rgba(249,115,22,.08);border-radius:8px;margin-bottom:6px;font-size:13px">
+      <div>
+        <span style="font-weight:700">🛵 ${b.name}</span>
+        <span style="margin-left:12px;background:rgba(99,102,241,.15);color:#818cf8;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:2px">PIN: ${b.pin}</span>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button onclick="editDeliveryBoyPin('${b.name}','${b.pin}')" style="background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.3);border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">✏️ PIN Edit</button>
+        <button onclick="removeDeliveryBoy('${b.name}')" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">🗑️ Remove</button>
+      </div>
+    </div>`).join('');
+}
+
+async function saveSettings(){
+  const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
+  const pin = document.getElementById('sSecretPin').value.trim();
+  const dpin = document.getElementById('sDeliveryPin').value.trim();
+  if(pin && (pin.length!==4||isNaN(pin))){ showToast('❌ Secret PIN 4 digits ka hona chahiye!','error'); return; }
+  if(dpin && (dpin.length!==4||isNaN(dpin))){ showToast('❌ Delivery PIN 4 digits ka hona chahiye!','error'); return; }
+  if(pin) s.secretPin = pin;
+  if(dpin) s.deliveryPin = dpin;
+  localStorage.setItem('sm_settings', JSON.stringify(s));
+  // Supabase mein bhi save karo taaki customers ko auto update ho
+  try{
+    await sbFetch('settings?key=eq.shop_settings', 'DELETE');
+    await sbFetch('settings', 'POST', {key:'shop_settings', value:s});
+  }catch(e){ console.log('Settings DB save failed'); }
+  showToast('✅ Settings save ho gayi!','success');
+}
+function changePass(){
+  const cur=document.getElementById('curPass').value;
+  const nw=document.getElementById('newPass').value;
+  const cf=document.getElementById('confPass').value;
+  if(!currentAdmin||cur!==currentAdmin.pass){showToast('❌ Current password galat hai!','error');return;}
+  if(nw!==cf){showToast('❌ New passwords match nahi kar rahe!','error');return;}
+  if(nw.length<6){showToast('❌ Password kam se kam 6 characters ka ho!','error');return;}
+  currentAdmin.pass=nw;
+  const idx=STAFF.findIndex(s=>s.id===currentAdmin.id);
+  if(idx>=0)STAFF[idx].pass=nw;
+  showToast('✅ Password change ho gaya!','success');
+  ['curPass','newPass','confPass'].forEach(id=>document.getElementById(id).value='');
+}
+
+// ===== IMAGE HANDLING =====
+function handleImgUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { showToast('❌ Image 2MB se badi hai!', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const dataUrl = e.target.result;
+    document.getElementById('imgPreviewEl').src = dataUrl;
+    document.getElementById('imgPreview').style.display = 'block';
+    document.getElementById('imgStatus').textContent = '✅ Image ready — ' + (file.size/1024).toFixed(0) + 'KB';
+    document.getElementById('pImgFile')._dataUrl = dataUrl;
+    document.getElementById('pImgUrl').value = '';
+    showToast('✅ Image upload ho gaya!', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ===== FORGOT PASSWORD — SECRET PIN =====
+let forgotUser = null;
+
+function showForgotPanel(){
+  document.getElementById('forgotPanel').style.display='block';
+  document.getElementById('forgotStep1').style.display='block';
+  document.getElementById('forgotStep2').style.display='none';
+  document.getElementById('frErr').style.display='none';
+  document.getElementById('frUser').value='';
+  document.getElementById('frPin').value='';
+  forgotUser = null;
+}
+
+function hideForgotPanel(){
+  document.getElementById('forgotPanel').style.display='none';
+  forgotUser = null;
+}
+
+function verifySecretPin(){
+  const username = document.getElementById('frUser').value.trim();
+  const pin = document.getElementById('frPin').value.trim();
+  const errEl = document.getElementById('frErr');
+
+  if(!username || !pin){
+    errEl.textContent='❌ Username aur PIN dono bharo!';
+    errEl.style.display='block'; return;
+  }
+  if(pin.length !== 4 || isNaN(pin)){
+    errEl.textContent='❌ PIN 4 digits ka hona chahiye!';
+    errEl.style.display='block'; return;
+  }
+
+  // Get staff
+  const allStaff = JSON.parse(localStorage.getItem('sm_staff')||'null') || STAFF;
+  const found = allStaff.find(s => s.username === username);
+  if(!found){
+    errEl.textContent='❌ Yeh username exist nahi karta!';
+    errEl.style.display='block'; return;
+  }
+
+  // Get secret PIN from settings (default 1234)
+  const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
+  const secretPin = s.secretPin || '1234';
+
+  if(pin !== secretPin){
+    errEl.textContent='❌ PIN galat hai! Settings mein jaake PIN check karein.';
+    errEl.style.display='block'; return;
+  }
+
+  // PIN verified!
+  forgotUser = found;
+  document.getElementById('forgotStep1').style.display='none';
+  document.getElementById('forgotStep2').style.display='block';
+  document.getElementById('frErr').style.display='none';
+}
+
+function resetAdminPassword(){
+  const newPass = document.getElementById('frNewPass').value;
+  const confPass = document.getElementById('frConfPass').value;
+  const errEl = document.getElementById('frErr2');
+
+  if(!newPass || newPass.length < 4){
+    errEl.textContent='❌ Password kam se kam 4 characters ka hona chahiye!';
+    errEl.style.display='block'; return;
+  }
+  if(newPass !== confPass){
+    errEl.textContent='❌ Dono passwords match nahi kar rahe!';
+    errEl.style.display='block'; return;
+  }
+
+  // Update in localStorage
+  const allStaff = JSON.parse(localStorage.getItem('sm_staff')||'null') || [...STAFF];
+  const idx = allStaff.findIndex(s => s.username === forgotUser.username);
+  if(idx >= 0){ allStaff[idx].pass = newPass; }
+  else { allStaff.push({...forgotUser, pass:newPass}); }
+  localStorage.setItem('sm_staff', JSON.stringify(allStaff));
+
+  // Auto login
+  const updated = allStaff.find(s=>s.username===forgotUser.username);
+  localStorage.setItem('sm_admin_session', JSON.stringify({username:updated.username, pass:updated.pass}));
+  hideForgotPanel();
+  showAdminUI(updated);
+  showToast('✅ Password reset ho gaya!','success');
+  forgotUser = null;
+}
+
+// ===== SELLER MANAGEMENT =====
+async function refreshSellers(){
+  const el = document.getElementById('sellersList');
+  if(el) el.innerHTML='<div style="text-align:center;padding:20px;color:var(--text2)">⏳ Loading...</div>';
+  let sellers = [];
+  try{
+    const dbSellers = await sbFetch('sellers?order=created_at.desc');
+    if(dbSellers && dbSellers.length > 0){
+      sellers = dbSellers.map(s=>({
+        id: 'SEL-'+String(s.id).slice(-4),
+        dbId: s.id,
+        shopName: s.shop_name || s.shopName || '',
+        ownerName: s.name || s.ownerName || '',
+        phone: s.phone || '',
+        category: s.categories || s.category || '',
+        commission: s.commission || 5,
+        status: s.status || 'pending'
+      }));
+    }
+  }catch(e){
+    // Try settings table fallback
+    try{
+      const fallback = await sbFetch('settings?key=eq.seller_requests');
+      if(fallback && fallback.length > 0){
+        sellers = JSON.parse(fallback[0].value || '[]').map(s=>({
+          id: 'SEL-'+String(s.id).toString().slice(-4),
+          dbId: s.id,
+          shopName: s.shop_name || '',
+          ownerName: s.name || '',
+          phone: s.phone || '',
+          category: s.categories || '',
+          commission: 5,
+          status: s.status || 'pending'
+        }));
+      }
+    }catch(e2){
+      sellers = JSON.parse(localStorage.getItem('sm_seller_requests')||'[]').map(s=>({
+        id: 'SEL-'+String(s.id).toString().slice(-4),
+        dbId: s.id,
+        shopName: s.shop_name || '',
+        ownerName: s.name || '',
+        phone: s.phone || '',
+        category: s.categories || '',
+        commission: 5,
+        status: s.status || 'pending'
+      }));
+    }
+  }
+  if(!sellers.length){
+    if(el) el.innerHTML='<div style="text-align:center;padding:30px;color:var(--text2)">Koi seller register nahi hua abhi<br><small>Customer app se "Register as Seller" karke register hote hain</small></div>';
+    return;
+  }
+  el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:13px">
+    <thead><tr style="background:var(--card2)">
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Seller ID</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Shop Name</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Owner</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Phone</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Category</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Commission</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Status</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Action</th>
+    </tr></thead>
+    <tbody>${sellers.map((s,i)=>`<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:10px;font-weight:700;color:var(--primary);font-size:12px">${s.id}</td>
+      <td style="padding:10px;font-weight:600">🏪 ${s.shopName}</td>
+      <td style="padding:10px">${s.ownerName}</td>
+      <td style="padding:10px"><a href="tel:${s.phone}" style="color:var(--primary)">📞 ${s.phone}</a></td>
+      <td style="padding:10px;font-size:11px">${s.category}</td>
+      <td style="padding:10px">
+        <input type="number" value="${s.commission||5}" min="0" max="50"
+          style="width:60px;padding:4px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:var(--card);color:var(--text)"
+          onchange="updateSellerCommission('${s.id}',this.value)">%
+      </td>
+      <td style="padding:10px">
+        <span style="background:${s.status==='active'?'rgba(34,197,94,.2)':s.status==='blocked'?'rgba(239,68,68,.2)':'rgba(251,191,36,.2)'};
+          color:${s.status==='active'?'var(--green)':s.status==='blocked'?'var(--red)':'#b45309'};
+          border-radius:12px;padding:3px 10px;font-size:11px;font-weight:700">
+          ${s.status==='active'?'✅ Active':s.status==='blocked'?'❌ Blocked':'⏳ Pending'}
+        </span>
+      </td>
+      <td style="padding:10px">
+        ${s.status!=='blocked'?`<button onclick="toggleSellerStatus('${s.dbId}','blocked')" style="background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Block</button>`:
+        `<button onclick="toggleSellerStatus('${s.dbId}','active')" style="background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Unblock</button>`}
+      </td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+}
+
+async function toggleSellerStatus(sellerId, newStatus){
+  try{
+    await sbFetch('sellers?id=eq.'+sellerId, 'PATCH', {status: newStatus});
+    showToast(newStatus==='blocked'?'❌ Seller block kiya':'✅ Seller active kiya', newStatus==='blocked'?'error':'success');
+  }catch(e){
+    showToast('❌ Error: '+e.message,'error');
+  }
   refreshSellers();
 }
 
