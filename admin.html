@@ -1062,11 +1062,14 @@ let ALL_ORDERS = JSON.parse(localStorage.getItem('sm_all_orders') || 'null') || 
 function doAdminLogin(){
   const u=document.getElementById('lu').value.trim();
   const p=document.getElementById('lp').value;
-  const allStaff = JSON.parse(localStorage.getItem('sm_staff')||'null') || STAFF;
-  const found = allStaff.find(s=>s.username===u&&s.pass===p);
+  // Pehle hardcoded STAFF check karo, phir localStorage
+  let found = STAFF.find(s=>s.username===u&&s.pass===p);
+  if(!found){
+    const localStaff = JSON.parse(localStorage.getItem('sm_staff')||'null');
+    if(localStaff) found = localStaff.find(s=>s.username===u&&s.pass===p);
+  }
   if(!found){document.getElementById('loginErr').style.display='block';return;}
   currentAdmin=found;
-  // Session save karo localStorage mein
   localStorage.setItem('sm_admin_session', JSON.stringify({username:found.username, pass:found.pass}));
   showAdminUI(found);
 }
@@ -2005,7 +2008,29 @@ async function addDeliveryBoy(){
     showToast('⚠️ '+name+' add hua lekin DB save nahi hua — internet check karo','error');
   }
 }
-async function removeDeliveryBoy(name){
+async function editDeliveryBoyPin(name, currentPin){
+  const newPin = prompt(`${name} ka naya PIN daalo (4 digit):`, currentPin);
+  if(!newPin) return;
+  if(!/^\d{4}$/.test(newPin)){
+    showToast('❌ PIN 4 digit ka hona chahiye!');
+    return;
+  }
+  if(newPin === currentPin){
+    showToast('⚠️ Naya PIN same hai!');
+    return;
+  }
+  // PIN update karo - naam same rakho (record safe!)
+  const boys = getDeliveryBoysList();
+  const idx = boys.findIndex(b => b.name.toLowerCase() === name.toLowerCase());
+  if(idx >= 0){
+    boys[idx].pin = newPin;
+    saveDeliveryBoystoDB(boys);
+    showToast(`✅ ${name} ka PIN update ho gaya!`);
+    renderDeliveryBoys();
+  }
+}
+
+function removeDeliveryBoy(name){
   const boys = getDeliveryBoysList().filter(b=>b.name!==name);
   localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
   renderDeliveryBoys();
@@ -2030,7 +2055,10 @@ function renderDeliveryBoys(){
         <span style="font-weight:700">🛵 ${b.name}</span>
         <span style="margin-left:12px;background:rgba(99,102,241,.15);color:#818cf8;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:2px">PIN: ${b.pin}</span>
       </div>
-      <button onclick="removeDeliveryBoy('${b.name}')" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">🗑️ Remove</button>
+      <div style="display:flex;gap:6px">
+        <button onclick="editDeliveryBoyPin('${b.name}','${b.pin}')" style="background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.3);border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">✏️ PIN Edit</button>
+        <button onclick="removeDeliveryBoy('${b.name}')" style="background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:3px 10px;font-size:11px;cursor:pointer">🗑️ Remove</button>
+      </div>
     </div>`).join('');
 }
 
