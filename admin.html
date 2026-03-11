@@ -2241,64 +2241,64 @@ function resetAdminPassword(){
 }
 
 // ===== SELLER MANAGEMENT =====
-function refreshSellers(){
-  const sellers = JSON.parse(localStorage.getItem('sm_sellers')||'[]');
+async function refreshSellers(){
   const el = document.getElementById('sellersList');
+  el.innerHTML='<div style="text-align:center;padding:30px;color:var(--text2)">⏳ Loading sellers...</div>';
+  let sellers = [];
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/sellers?order=created_at.desc', {
+      headers:{ 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+    });
+    if(res.ok){ const d = await res.json(); if(Array.isArray(d)) sellers = d; }
+  }catch(e){}
   if(!sellers.length){
-    el.innerHTML='<div style="text-align:center;padding:30px;color:var(--text2)">Koi seller register nahi hua abhi<br><small>Sellers <strong>seller.html</strong> par register karte hain</small></div>';
+    el.innerHTML='<div style="text-align:center;padding:30px;color:var(--text2)">Koi seller register nahi hua abhi<br><small>Customers <b>Account → Register as Seller</b> se register karte hain</small></div>';
     return;
   }
   el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:13px">
     <thead><tr style="background:var(--card2)">
-      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Seller ID</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">#</th>
       <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Shop Name</th>
       <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Owner</th>
       <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Phone</th>
       <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Category</th>
-      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Commission</th>
+      <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Date</th>
       <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Status</th>
       <th style="padding:10px;text-align:left;font-size:11px;color:var(--text2)">Action</th>
     </tr></thead>
-    <tbody>${sellers.map((s,i)=>`<tr style="border-bottom:1px solid var(--border)">
+    <tbody>${sellers.map((s)=>`<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:10px;font-weight:700;color:var(--primary);font-size:12px">${s.id}</td>
-      <td style="padding:10px;font-weight:600">🏪 ${s.shopName}</td>
-      <td style="padding:10px">${s.ownerName}</td>
+      <td style="padding:10px;font-weight:600">🏪 ${s.shop_name||'-'}</td>
+      <td style="padding:10px">${s.name||'-'}</td>
       <td style="padding:10px"><a href="tel:${s.phone}" style="color:var(--primary)">📞 ${s.phone}</a></td>
-      <td style="padding:10px;font-size:11px">${s.category}</td>
+      <td style="padding:10px;font-size:11px">${s.categories||'-'}</td>
+      <td style="padding:10px;font-size:11px">${s.created_at?new Date(s.created_at).toLocaleDateString('hi-IN'):'-'}</td>
       <td style="padding:10px">
-        <input type="number" value="${s.commission||5}" min="0" max="50"
-          style="width:60px;padding:4px;border:1px solid var(--border);border-radius:4px;font-size:12px;background:var(--card);color:var(--text)"
-          onchange="updateSellerCommission('${s.id}',this.value)">%
-      </td>
-      <td style="padding:10px">
-        <span style="background:${s.status==='active'?'rgba(34,197,94,.2)':s.status==='blocked'?'rgba(239,68,68,.2)':'rgba(251,191,36,.2)'};
-          color:${s.status==='active'?'var(--green)':s.status==='blocked'?'var(--red)':'#b45309'};
-          border-radius:12px;padding:3px 10px;font-size:11px;font-weight:700">
+        <span style="background:${s.status==='active'?'rgba(34,197,94,.2)':s.status==='blocked'?'rgba(239,68,68,.2)':'rgba(251,191,36,.2)'};color:${s.status==='active'?'var(--green)':s.status==='blocked'?'var(--red)':'#b45309'};border-radius:12px;padding:3px 10px;font-size:11px;font-weight:700">
           ${s.status==='active'?'✅ Active':s.status==='blocked'?'❌ Blocked':'⏳ Pending'}
         </span>
       </td>
       <td style="padding:10px">
-        ${s.status!=='blocked'?`<button onclick="toggleSellerStatus('${s.id}','blocked')" style="background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Block</button>`:
-        `<button onclick="toggleSellerStatus('${s.id}','active')" style="background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;cursor:pointer">Unblock</button>`}
+        ${s.status!=='active'?`<button onclick="updateSellerStatusDB(${s.id},'active')" style="background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;margin-right:4px">✅ Approve</button>`:''}
+        ${s.status!=='blocked'?`<button onclick="updateSellerStatusDB(${s.id},'blocked')" style="background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer">❌ Block</button>`:''}
       </td>
     </tr>`).join('')}</tbody>
   </table>`;
 }
 
-function toggleSellerStatus(sellerId, newStatus){
-  const sellers = JSON.parse(localStorage.getItem('sm_sellers')||'[]');
-  const idx = sellers.findIndex(s=>s.id===sellerId);
-  if(idx>=0){ sellers[idx].status=newStatus; localStorage.setItem('sm_sellers',JSON.stringify(sellers)); }
-  showToast(newStatus==='blocked'?'❌ Seller block kiya':'✅ Seller active kiya', newStatus==='blocked'?'error':'success');
-  refreshSellers();
+async function updateSellerStatusDB(id, newStatus){
+  try{
+    const res = await fetch(SUPABASE_URL + '/rest/v1/sellers?id=eq.' + id, {
+      method:'PATCH',
+      headers:{ 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
+      body: JSON.stringify({status: newStatus})
+    });
+    if(res.ok){ showToast(newStatus==='active'?'✅ Seller approve ho gaya!':'❌ Seller block kiya', newStatus==='active'?'success':'error'); refreshSellers(); }
+    else showToast('❌ Update failed','error');
+  }catch(e){ showToast('❌ Network error','error'); }
 }
-
-function updateSellerCommission(sellerId, val){
-  const sellers = JSON.parse(localStorage.getItem('sm_sellers')||'[]');
-  const idx = sellers.findIndex(s=>s.id===sellerId);
-  if(idx>=0){ sellers[idx].commission=parseInt(val)||5; localStorage.setItem('sm_sellers',JSON.stringify(sellers)); }
-  showToast('✅ Commission update ho gaya!','success');
-}
+function toggleSellerStatus(id, s){ updateSellerStatusDB(id, s); }
+function updateSellerCommission(id, val){ showToast('✅ Noted!','success'); }
 
 // ===== BULK ORDER TRACKING =====
 // Delivery boys list (from orders statusHistory)
