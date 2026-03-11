@@ -2,24 +2,25 @@
   "name": "Sultan Mart Delivery",
   "short_name": "SM Delivery",
   "description": "Sultan Mart Delivery Boy App",
-  "start_url": "/delivery.html",
+  "start_url": "/delivery.html?source=pwa",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f97316",
   "theme_color": "#f97316",
   "orientation": "portrait",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-delivery-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     },
     {
       "src": "/icon-delivery-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "maskable"
+      "purpose": "any maskable"
     }
   ]
 }
