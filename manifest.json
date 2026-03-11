@@ -2,7 +2,7 @@
   "name": "Sultan Mart Bharatganj",
   "short_name": "Sultan Mart",
   "description": "Bharatganj, Prayagraj ki No.1 Grocery Shop — Fresh Groceries, Best Prices",
-  "start_url": "/",
+  "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
