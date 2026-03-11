@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-title" content="SM Delivery">
 <meta name="theme-color" content="#1a6dd4">
 <title>Sultan Mart — Delivery App</title>
-<link rel="manifest" href="delivery-manifest.json">
+<link rel="manifest" href="/manifest-delivery.json">
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Hind:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
@@ -144,6 +144,7 @@ body{font-family:'Hind',sans-serif;background:var(--bg);color:var(--text);min-he
   </div>
   <div class="hdr-right">
     <span class="hdr-badge" id="pendingCount">0 Pending</span>
+    <button id="deliveryInstallBtn" onclick="installDeliveryApp()" style="display:none;background:#fff;color:#f97316;border:none;border-radius:20px;padding:5px 12px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px">📲 Install</button>
     <button class="logout-btn" onclick="doLogout()">Logout</button>
   </div>
 </div>
@@ -711,6 +712,30 @@ setInterval(()=>{ if(deliveryBoy) renderOrders(); }, 30000);
 
 // Start auto refresh
 startDeliveryAutoRefresh();
+
+// ===== PWA INSTALL =====
+let deliveryDeferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deliveryDeferredPrompt = e;
+  const btn = document.getElementById('deliveryInstallBtn');
+  if(btn) btn.style.display = 'inline-block';
+});
+function installDeliveryApp(){
+  if(deliveryDeferredPrompt){
+    deliveryDeferredPrompt.prompt();
+    deliveryDeferredPrompt.userChoice.then(r => {
+      deliveryDeferredPrompt = null;
+      const btn = document.getElementById('deliveryInstallBtn');
+      if(btn) btn.style.display = 'none';
+    });
+  }
+}
+window.addEventListener('appinstalled', () => {
+  const btn = document.getElementById('deliveryInstallBtn');
+  if(btn) btn.style.display = 'none';
+  deliveryDeferredPrompt = null;
+});
 </script>
 </body>
 </html>
