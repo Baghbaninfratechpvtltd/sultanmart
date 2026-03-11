@@ -1147,6 +1147,20 @@ function showPanel(p){
 // ===== DASHBOARD =====
 async function initDashboard(){
   renderBannerList();
+  // Load staff from DB
+  try{
+    const staffData = await sbFetch('settings?key=eq.staff_list');
+    if(staffData && staffData.length > 0){
+      const dbStaff = JSON.parse(staffData[0].value);
+      if(dbStaff && dbStaff.length > 0){
+        // Merge - keep default admin but add DB staff
+        const defaultIds = [1,2,3];
+        const extraStaff = dbStaff.filter(s=>!defaultIds.includes(s.id));
+        STAFF = [...STAFF.filter(s=>defaultIds.includes(s.id)), ...extraStaff];
+        localStorage.setItem('sm_staff', JSON.stringify(STAFF));
+      }
+    }
+  }catch(e){}
   // Load from DB first, fallback to localStorage
   const dbLoaded = await loadAllOrdersWithDB();
   if(!dbLoaded){
@@ -1767,7 +1781,7 @@ function renderStaff(){
     </div>`).join('');
 }
 function openAddStaff(){openModal('modal-staff');}
-function addStaff(){
+async function addStaff(){
   const name=document.getElementById('stName').value.trim();
   const phone=document.getElementById('stPhone').value.trim();
   const user=document.getElementById('stUser').value.trim();
@@ -1776,13 +1790,23 @@ function addStaff(){
   if(!name||!user||!pass){showToast('❌ Saari details bharein!','error');return;}
   if(STAFF.find(s=>s.username===user)){showToast('❌ Yeh username already hai!','error');return;}
   STAFF.push({id:Date.now(),name,phone,username:user,pass,role});
+  localStorage.setItem('sm_staff',JSON.stringify(STAFF));
+  try{
+    const ex=await sbFetch('settings?key=eq.staff_list');
+    if(ex&&ex.length>0) await sbFetch('settings?key=eq.staff_list','PATCH',{value:JSON.stringify(STAFF)});
+    else await sbFetch('settings','POST',{key:'staff_list',value:JSON.stringify(STAFF)});
+  }catch(e){}
   closeModal('modal-staff');
   renderStaff();
   showToast('✅ Staff add ho gaya!','success');
 }
-function removeStaff(id){
+async function removeStaff(id){
   if(!confirm('Staff remove karein?'))return;
   STAFF=STAFF.filter(s=>s.id!==id);
+  localStorage.setItem('sm_staff',JSON.stringify(STAFF));
+  try{
+    await sbFetch('settings?key=eq.staff_list','PATCH',{value:JSON.stringify(STAFF)});
+  }catch(e){}
   renderStaff();
   showToast('🗑️ Staff remove ho gaya!');
 }
