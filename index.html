@@ -9,6 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sultan Mart">
 <meta name="description" content="Bharatganj Prayagraj ki No.1 Grocery Shop">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" href="/favicon.png">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon-192.png">
 <meta name="application-name" content="Sultan Mart">
@@ -1974,35 +1976,7 @@ function initSearch(){
   document.getElementById('popularSearches').innerHTML=POPULAR.map(s=>`<div class="ps-chip" onclick="document.getElementById('searchInput').value='${s}';liveSearch()">${s}</div>`).join('');
 }
 
-// ===== INJECT MANIFEST (works on Netlify + local) =====
-(function(){
-  const manifest = {
-    "name": "Sultan Mart – Bharatganj",
-    "short_name": "Sultan Mart",
-    "description": "Bharatganj, Prayagraj ki No.1 Grocery App",
-    "start_url": "./",
-    "display": "standalone",
-    "background_color": "#1a6dd4",
-    "theme_color": "#1a6dd4",
-    "orientation": "portrait-primary",
-    "lang": "hi",
-    "categories": ["shopping", "food"],
-    "icons": [
-      {"src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%231a6dd4'/%3E%3Ctext x='96' y='115' font-size='100' text-anchor='middle' font-family='Arial'%3E🛒%3C/text%3E%3C/svg%3E","sizes":"192x192","type":"image/svg+xml","purpose":"any maskable"},
-      {"src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='80' fill='%231a6dd4'/%3E%3Ctext x='256' y='300' font-size='280' text-anchor='middle' font-family='Arial'%3E🛒%3C/text%3E%3C/svg%3E","sizes":"512x512","type":"image/svg+xml","purpose":"any maskable"}
-    ],
-    "screenshots": [
-      {"src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 390 844'%3E%3Crect fill='%231a6dd4' width='390' height='844'/%3E%3Ctext x='195' y='422' font-size='60' text-anchor='middle' fill='white' font-family='Arial'%3ESultan Mart%3C/text%3E%3C/svg%3E", "sizes": "390x844", "type": "image/svg+xml", "form_factor": "narrow"}
-    ]
-  };
-  try {
-    const blob = new Blob([JSON.stringify(manifest)], {type:'application/manifest+json'});
-    const url = URL.createObjectURL(blob);
-    let link = document.querySelector('link[rel="manifest"]');
-    if(!link){link=document.createElement('link');link.rel='manifest';document.head.appendChild(link);}
-    link.href = url;
-  } catch(e) { /* fallback to manifest.json file */ }
-})();
+// manifest.json file se load hota hai — /manifest.json
 
 // ===== UPI PAYMENT FUNCTIONS =====
 function getUPILink(){
