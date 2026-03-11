@@ -1,8 +1,13 @@
-const CACHE_NAME = 'sultanmart-v6';
+const CACHE_NAME = 'sultanmart-v8';
 const ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/install.html',
+  '/delivery.html',
+  '/delivery-manifest.json',
+  '/seller.html',
+  '/admin.html',
   '/icon-192.png',
   '/icon-512.png'
 ];
