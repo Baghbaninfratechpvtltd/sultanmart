@@ -509,7 +509,7 @@ img{object-fit:cover}
 <div class="hdr" id="hdr">
   <div class="hdr-top">
     <div class="logo" onclick="showPage('home')">
-      <span class="logo-name" id="logoName"><span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:8px;font-size:18px;flex-shrink:0;margin-right:2px">🛒</span>Sultan Mart</span>
+      <span class="logo-name" id="logoName"><img src="/icon-192.png" onerror="this.style.display='none'" style="width:36px;height:36px;border-radius:8px;object-fit:cover;flex-shrink:0;margin-right:6px;vertical-align:middle">Sultan Mart</span>
       <span class="logo-sub" id="logoSub">📍 Bharatganj, Prayagraj</span>
     </div>
     <div class="search-bar">
@@ -517,7 +517,7 @@ img{object-fit:cover}
       <button onclick="liveSearch()">🔍</button>
     </div>
     <div class="hdr-icons">
-      <button id="hdrInstallBtn" onclick="installApp()" style="display:none;background:#fff;color:#1a6dd4;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Baloo 2',cursive">📲 App Install</button>
+      <button id="hdrInstallBtn" onclick="installApp()" style="display:inline-flex;align-items:center;gap:4px;background:#fff;color:#1a6dd4;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Baloo 2',cursive">📲 App Install</button>
       <button class="hico" onclick="toggleWishlist()">❤️</button>
     </div>
   </div>
@@ -807,7 +807,7 @@ async function sbFetch(endpoint, method='GET', body=null, extraHeaders={}){
 
 // Get products from Supabase
 async function getProductsFromDB(){
-  const data = await sbFetch('products?active=eq.true&order=category,name');
+  const data = await sbFetch('products?order=category,name');
   return data || [];
 }
 
@@ -1189,11 +1189,16 @@ function getProducts(){
   }
 }
 const CATS=[
-  {id:'all',name:'Sab Kuch',e:'🏪'},{id:'atta-chawal',name:'Atta-Chawal',e:'🌾'},
-  {id:'dal',name:'Dal',e:'🫘'},{id:'tel-ghee',name:'Tel-Ghee',e:'🫙'},
-  {id:'masale',name:'Masale',e:'🌶️'},{id:'sabzi',name:'Sabzi',e:'🥦'},
-  {id:'dairy',name:'Dairy',e:'🥛'},{id:'snacks',name:'Snacks',e:'🍟'},
-  {id:'puja',name:'Puja',e:'🪔'},{id:'sabun',name:'Sabun',e:'🧼'}
+  {id:'all',name:'Sab Kuch',e:'🏪',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f3ea.svg'},
+  {id:'atta-chawal',name:'Atta-Chawal',e:'🌾',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f33e.svg'},
+  {id:'dal',name:'Dal',e:'🫘',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1fad8.svg'},
+  {id:'tel-ghee',name:'Tel-Ghee',e:'🫙',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1fad9.svg'},
+  {id:'masale',name:'Masale',e:'🌶️',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f336.svg'},
+  {id:'sabzi',name:'Sabzi',e:'🥦',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f966.svg'},
+  {id:'dairy',name:'Dairy',e:'🥛',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f95b.svg'},
+  {id:'snacks',name:'Snacks',e:'🍟',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f35f.svg'},
+  {id:'puja',name:'Puja',e:'🪔',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1fa94.svg'},
+  {id:'sabun',name:'Sabun',e:'🧼',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f9fc.svg'}
 ];
 const RATINGS=['4.1','4.2','4.3','4.4','4.5','3.9','4.0','4.3'];
 const POPULAR=['dal chawal','atta','ghee','masala','dahi','sabun','sarson tel','basmati'];
@@ -1224,13 +1229,10 @@ window.addEventListener('appinstalled', () => {
 
 function updateInstallButtons(){
   const hdrBtn = document.getElementById('hdrInstallBtn');
-  const heroBtn = document.getElementById('heroInstallBtn');
   if(isInstalled){
-    if(hdrBtn){ hdrBtn.style.display='none'; }
-    if(heroBtn){ heroBtn.style.display='none'; }
+    if(hdrBtn) hdrBtn.style.display='none';
   } else {
-    if(hdrBtn){ hdrBtn.style.display='inline-flex'; }
-    if(heroBtn){ heroBtn.style.display='inline-block'; heroBtn.textContent='⬇️ App Install Karo'; heroBtn.onclick=installApp; }
+    if(hdrBtn) hdrBtn.style.display='inline-flex';
   }
 }
 
@@ -1295,7 +1297,9 @@ function goAccount(){showPage('account');}
 function renderCategories(){
   document.getElementById('catScroll').innerHTML=CATS.map(c=>`
     <div class="ccard ${c.id===currentCat?'on':''}" id="cc-${c.id}" onclick="filterCat('${c.id}')">
-      <div class="ccard-img">${c.e}</div>
+      <div class="ccard-img">
+        <img src="${c.img}" alt="${c.e}" style="width:32px;height:32px;object-fit:contain" onerror="this.outerHTML='${c.e}'">
+      </div>
       <div class="ccard-name">${c.name}</div>
     </div>`).join('');
 }
