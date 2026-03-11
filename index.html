@@ -2,7 +2,7 @@
 <html lang="hi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a6dd4">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1189,16 +1189,16 @@ function getProducts(){
   }
 }
 const CATS=[
-  {id:'all',name:'Sab Kuch',e:'🏪',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f3ea.svg'},
-  {id:'atta-chawal',name:'Atta-Chawal',e:'🌾',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f33e.svg'},
-  {id:'dal',name:'Dal',e:'🫘',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1fad8.svg'},
-  {id:'tel-ghee',name:'Tel-Ghee',e:'🫙',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1fad9.svg'},
-  {id:'masale',name:'Masale',e:'🌶️',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f336.svg'},
-  {id:'sabzi',name:'Sabzi',e:'🥦',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f966.svg'},
-  {id:'dairy',name:'Dairy',e:'🥛',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f95b.svg'},
-  {id:'snacks',name:'Snacks',e:'🍟',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f35f.svg'},
-  {id:'puja',name:'Puja',e:'🪔',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1fa94.svg'},
-  {id:'sabun',name:'Sabun',e:'🧼',img:'https://cdn.jsdelivr.net/npm/twemoji@14/2/svg/1f9fc.svg'}
+  {id:'all',name:'Sab Kuch',e:'🏪'},
+  {id:'atta-chawal',name:'Atta-Chawal',e:'🌾'},
+  {id:'dal',name:'Dal',e:'🫘'},
+  {id:'tel-ghee',name:'Tel-Ghee',e:'🫙'},
+  {id:'masale',name:'Masale',e:'🌶️'},
+  {id:'sabzi',name:'Sabzi',e:'🥦'},
+  {id:'dairy',name:'Dairy',e:'🥛'},
+  {id:'snacks',name:'Snacks',e:'🍟'},
+  {id:'puja',name:'Puja',e:'🪔'},
+  {id:'sabun',name:'Sabun',e:'🧼'}
 ];
 const RATINGS=['4.1','4.2','4.3','4.4','4.5','3.9','4.0','4.3'];
 const POPULAR=['dal chawal','atta','ghee','masala','dahi','sabun','sarson tel','basmati'];
@@ -1297,9 +1297,7 @@ function goAccount(){showPage('account');}
 function renderCategories(){
   document.getElementById('catScroll').innerHTML=CATS.map(c=>`
     <div class="ccard ${c.id===currentCat?'on':''}" id="cc-${c.id}" onclick="filterCat('${c.id}')">
-      <div class="ccard-img">
-        <img src="${c.img}" alt="${c.e}" style="width:32px;height:32px;object-fit:contain" onerror="this.outerHTML='${c.e}'">
-      </div>
+      <div class="ccard-img"><span style="font-size:28px;line-height:1">${c.e}</span></div>
       <div class="ccard-name">${c.name}</div>
     </div>`).join('');
 }
