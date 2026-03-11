@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="Sultan Mart">
 <meta name="description" content="Bharatganj Prayagraj ki No.1 Grocery Shop">
 <link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-192.png"><rect width='192' height='192' rx='32' fill='%231a6dd4'/><text x='96' y='115' font-size='100' text-anchor='middle' font-family='Arial'>🛒</text></svg>">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <meta name="apple-mobile-web-app-title" content="Sultan Mart">
 <meta name="application-name" content="Sultan Mart">
 <title>Sultan Mart – Bharatganj Prayagraj</title>
@@ -39,9 +39,9 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
 @media(min-width:900px){
   .pimg-wrap{height:110px!important}
   .pcard{font-size:11px}
-  .pinfo{padding:4px 5px 3px}
-  .pname{font-size:11px;height:26px;margin:1px 0 2px}
-  .pbrand{font-size:10px}
+  .pinfo{padding:3px 5px 3px}
+  .pname{font-size:11px;height:auto;min-height:0;margin:1px 0 1px;-webkit-line-clamp:1}
+  .pbrand{font-size:10px;display:none}
   .pnow{font-size:13px}
   .price-row{margin:1px 0}
   .padd-btn{padding:5px;font-size:11px}
@@ -506,7 +506,7 @@ img{object-fit:cover}
 <div class="hdr" id="hdr">
   <div class="hdr-top">
     <div class="logo" onclick="showPage('home')">
-      <span class="logo-name" id="logoName"><img src="/icon-192.png" style="height:32px;width:32px;border-radius:6px;vertical-align:middle;margin-right:6px;object-fit:cover"> Sultan Mart</span>
+      <span class="logo-name" id="logoName">Sultan Mart</span>
       <span class="logo-sub" id="logoSub">📍 Bharatganj, Prayagraj</span>
     </div>
     <div class="search-bar">
