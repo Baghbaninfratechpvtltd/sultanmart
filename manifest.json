@@ -1,14 +1,14 @@
 {
-  "name": "Sultan Mart Bharatganj",
+  "name": "Sultan Mart Grocery",
   "short_name": "Sultan Mart",
   "description": "Bharatganj Prayagraj ki No.1 Grocery Shop",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#1a6dd4",
   "theme_color": "#1a6dd4",
-  "orientation": "portrait-primary",
-  "lang": "hi-IN",
+  "orientation": "portrait",
+  "lang": "hi",
   "icons": [
     {
       "src": "/icon-192.png",
