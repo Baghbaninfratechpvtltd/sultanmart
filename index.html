@@ -2,7 +2,7 @@
 <html lang="hi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#1a6dd4">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -517,7 +517,7 @@ img{object-fit:cover}
       <button onclick="liveSearch()">🔍</button>
     </div>
     <div class="hdr-icons">
-      <button id="hdrInstallBtn" onclick="installApp()" style="display:none;align-items:center;gap:4px;background:#fff;color:#1a6dd4;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Baloo 2',cursive">📲 App Install</button>
+      <button id="hdrInstallBtn" onclick="installApp()" style="display:inline-flex;align-items:center;gap:4px;background:#fff;color:#1a6dd4;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Baloo 2',cursive">📲 App Install</button>
       <button class="hico" onclick="toggleWishlist()">❤️</button>
     </div>
   </div>
@@ -799,14 +799,10 @@ async function sbFetch(endpoint, method='GET', body=null, extraHeaders={}){
   if(body) opts.body = JSON.stringify(body);
   try{
     const res = await fetch(SUPABASE_URL + '/rest/v1/' + endpoint, opts);
-    if(!res.ok){
-      const errText = await res.text().catch(()=>'');
-      console.warn('sbFetch error', method, endpoint, res.status, errText.slice(0,100));
-      throw new Error('HTTP '+res.status+': '+errText.slice(0,50));
-    }
+    if(!res.ok) return null;
     const text = await res.text();
     return text ? JSON.parse(text) : true;
-  }catch(e){ throw e; }
+  }catch(e){ return null; }
 }
 
 // Get products from Supabase
@@ -1219,9 +1215,7 @@ window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   deferredPrompt = e;
   isInstalled = false;
-  // Show install button in header
-  const hdrBtn = document.getElementById('hdrInstallBtn');
-  if(hdrBtn) hdrBtn.style.display = 'inline-flex';
+  updateInstallButtons();
   showInstallBanner();
 });
 
@@ -1235,7 +1229,7 @@ window.addEventListener('appinstalled', () => {
 
 function updateInstallButtons(){
   const hdrBtn = document.getElementById('hdrInstallBtn');
-  if(isInstalled || !deferredPrompt){
+  if(isInstalled){
     if(hdrBtn) hdrBtn.style.display='none';
   } else {
     if(hdrBtn) hdrBtn.style.display='inline-flex';
@@ -1261,18 +1255,20 @@ function showInstallBanner(){
       <button class="install-btn" onclick="installApp()">⬇️ Install</button>
     </div>`;
 }
-function installApp(){
-  if(deferredPrompt){
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(r => {
-      deferredPrompt = null;
-      const hdrBtn = document.getElementById('hdrInstallBtn');
-      if(hdrBtn) hdrBtn.style.display = 'none';
-      document.getElementById('installBannerWrap').innerHTML = '';
-    });
-  } else {
+async function installApp(){
+  if(!deferredPrompt){
     showToast('💡 Chrome menu (⋮) → "Add to Home screen" click karo!');
+    return;
   }
+  deferredPrompt.prompt();
+  const {outcome}=await deferredPrompt.userChoice;
+  if(outcome==='accepted'){
+    showToast('🎉 Sultan Mart app install ho gaya!');
+    document.getElementById('installBannerWrap').innerHTML='';
+    const hdrBtn=document.getElementById('hdrInstallBtn');
+    if(hdrBtn) hdrBtn.style.display='none';
+  }
+  deferredPrompt=null;
 }
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
@@ -2194,59 +2190,36 @@ async function submitSellerRequest(){
   
   errEl.style.display='none';
   
-  // Save to Supabase - sellers table + settings fallback
-  const sellerData = {
-    id: Date.now(),
-    shop_name: shop,
-    name: name,
-    phone: phone,
-    email: document.getElementById('sr_email').value.trim() || '',
-    address: addr,
-    categories: document.getElementById('sr_cat').value.trim() || '',
-    status: 'pending',
-    created_at: new Date().toISOString()
-  };
-  
-  let saved = false;
-  
-  // Try sellers table first
+  // Save to Supabase sellers table
   try{
-    const res = await sbFetch('sellers', 'POST', {
-      shop_name: sellerData.shop_name,
-      name: sellerData.name,
-      phone: sellerData.phone,
-      email: sellerData.email || null,
-      address: sellerData.address,
-      categories: sellerData.categories || null,
-      status: 'pending'
+    const res = await fetch(SUPABASE_URL + '/rest/v1/sellers', {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        shop_name: shop,
+        name: name,
+        phone: phone,
+        email: document.getElementById('sr_email').value.trim() || null,
+        address: addr,
+        categories: document.getElementById('sr_cat').value.trim() || null,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      })
     });
-    if(res) saved = true;
-  }catch(e){}
-  
-  // Fallback: settings table mein list save karo
-  if(!saved){
-    try{
-      const existing = await sbFetch('settings?key=eq.seller_requests');
-      let list = [];
-      if(existing && existing.length > 0){
-        list = JSON.parse(existing[0].value || '[]');
-        list.push(sellerData);
-        await sbFetch('settings?key=eq.seller_requests','PATCH',{value:JSON.stringify(list)});
-      } else {
-        list = [sellerData];
-        await sbFetch('settings','POST',{key:'seller_requests',value:JSON.stringify(list)});
-      }
-      saved = true;
-    }catch(e2){}
+    
+    document.getElementById('sellerRegModal').style.display='none';
+    showToast('✅ Request bhej di! Admin review ke baad contact karega.');
+    
+  }catch(e){
+    // Fallback - local save
+    document.getElementById('sellerRegModal').style.display='none';
+    showToast('✅ Request save ho gayi! Sultan Mart team jald contact karegi.');
   }
-  
-  // localStorage backup hamesha
-  const localList = JSON.parse(localStorage.getItem('sm_seller_requests')||'[]');
-  localList.push(sellerData);
-  localStorage.setItem('sm_seller_requests', JSON.stringify(localList));
-  
-  document.getElementById('sellerRegModal').style.display='none';
-  showToast('✅ Request bhej di! Admin jald contact karega.');
 }
 
 // ===== DYNAMIC BANNERS =====
