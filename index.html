@@ -208,6 +208,9 @@ img{object-fit:cover}
 .bslide{display:none;height:100%;align-items:center;padding:20px;animation:fi .4s}
 .bslide.on{display:flex}
 @keyframes fi{from{opacity:0}to{opacity:1}}
+
+.bslide-custom{background:linear-gradient(135deg,var(--bc1,#1a6dd4),var(--bc2,#0a3d8a))}
+
 .b1{background:linear-gradient(135deg,#1a6dd4,#0a3d8a)}
 .b2{background:linear-gradient(135deg,#ff6b35,#c0392b)}
 .b3{background:linear-gradient(135deg,#26a541,#1a7a2e)}
@@ -506,7 +509,7 @@ img{object-fit:cover}
 <div class="hdr" id="hdr">
   <div class="hdr-top">
     <div class="logo" onclick="showPage('home')">
-      <span class="logo-name" id="logoName"><img src="/icon-192.png" alt="Sultan Mart" style="height:34px;width:34px;border-radius:7px;object-fit:cover;flex-shrink:0">Sultan Mart</span>
+      <span class="logo-name" id="logoName"><span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;background:linear-gradient(135deg,#f59e0b,#d97706);border-radius:8px;font-size:18px;flex-shrink:0;margin-right:2px">🛒</span>Sultan Mart</span>
       <span class="logo-sub" id="logoSub">📍 Bharatganj, Prayagraj</span>
     </div>
     <div class="search-bar">
@@ -540,10 +543,7 @@ img{object-fit:cover}
 
   <!-- BANNER -->
   <div class="banner-wrap">
-    <div class="bslide b1 on"><div class="btxt"><h2>Ghar Ka Ration<br>Ab Aur Sasta!</h2><p>Bharatganj ki No.1 Grocery</p><button class="bbtn">Abhi Kharido →</button></div><div class="bemoji">🛒</div></div>
-    <div class="bslide b2"><div class="btxt"><h2>Masalon Ka<br>Maha Sale! 🔥</h2><p>20% OFF — Sirf aaj!</p><button class="bbtn" onclick="filterCat('masale')">Dekho →</button></div><div class="bemoji">🌶️</div></div>
-    <div class="bslide b3"><div class="btxt"><h2>Fresh Dairy<br>Roz Aata Hai!</h2><p>Guaranteed Fresh!</p><button class="bbtn" onclick="filterCat('dairy')">Order Karo →</button></div><div class="bemoji">🥛</div></div>
-    <div class="bslide b4"><div class="btxt"><h2>App Install<br>Karo Free!</h2><p>Home screen par rakho</p><button class="bbtn" id="heroInstallBtn" style="display:none">📲 Install</button></div><div class="bemoji">📱</div></div>
+    <div id="bannerSlides"></div>
     <div class="bdots" id="bdots"></div>
   </div>
 
@@ -1228,8 +1228,8 @@ function updateInstallButtons(){
   if(isInstalled){
     if(hdrBtn){ hdrBtn.style.display='none'; }
     if(heroBtn){ heroBtn.style.display='none'; }
-  } else if(deferredPrompt){
-    if(hdrBtn){ hdrBtn.style.display='inline-block'; hdrBtn.onclick=installApp; }
+  } else {
+    if(hdrBtn){ hdrBtn.style.display='inline-flex'; }
     if(heroBtn){ heroBtn.style.display='inline-block'; heroBtn.textContent='⬇️ App Install Karo'; heroBtn.onclick=installApp; }
   }
 }
@@ -1254,7 +1254,10 @@ function showInstallBanner(){
     </div>`;
 }
 async function installApp(){
-  if(!deferredPrompt)return;
+  if(!deferredPrompt){
+    showToast('💡 Chrome menu (⋮) → "Add to Home screen" click karo!');
+    return;
+  }
   deferredPrompt.prompt();
   const {outcome}=await deferredPrompt.userChoice;
   if(outcome==='accepted'){
@@ -1927,13 +1930,22 @@ function showToast(msg){
 let slide=0;
 function goSlide(n){
   document.querySelectorAll('.bslide').forEach((el,i)=>el.classList.toggle('on',i===n));
-  document.querySelectorAll('.dot').forEach((el,i)=>el.classList.toggle('on',i===n));
+  document.querySelectorAll('.bdot').forEach((el,i)=>el.classList.toggle('on',i===n));
   slide=n;
 }
+let bannerTimer = null;
 function initBanner(){
   const n=document.querySelectorAll('.bslide').length;
-  document.getElementById('bdots').innerHTML=Array.from({length:n},(_,i)=>`<div class="dot ${i===0?'on':''}" onclick="goSlide(${i})"></div>`).join('');
-  setInterval(()=>goSlide((slide+1)%n),4000);
+  if(n===0) return;
+  if(bannerTimer) clearInterval(bannerTimer);
+  bannerTimer = setInterval(()=>goSlide((slide+1)%n),4000);
+}
+function startBannerSlider(){
+  if(bannerTimer) clearInterval(bannerTimer);
+  slide=0;
+  const n=document.querySelectorAll('.bslide').length;
+  if(n===0) return;
+  bannerTimer = setInterval(()=>goSlide((slide+1)%n),4000);
 }
 
 // ===== POPULAR SEARCHES =====
@@ -2072,7 +2084,7 @@ if(saved){currentUser=JSON.parse(saved);orders=JSON.parse(localStorage.getItem('
 // Turant products dikha do
 renderCategories();
 filterCat('all');
-initBanner();
+loadBannersFromDB();
 // Background mein DB connect karo
 initDB();
 initSearch();
@@ -2206,6 +2218,58 @@ async function submitSellerRequest(){
     document.getElementById('sellerRegModal').style.display='none';
     showToast('✅ Request save ho gayi! Sultan Mart team jald contact karegi.');
   }
+}
+
+// ===== DYNAMIC BANNERS =====
+const DEFAULT_BANNERS_IDX = [
+  {id:1, title:'Ghar Ka Ration<br>Ab Aur Sasta!', sub:'Bharatganj ki No.1 Grocery', btn:'Abhi Kharido', color:'#1a6dd4,#0a3d8a', emoji:'🛒', link:''},
+  {id:2, title:'Masalon Ka<br>Maha Sale! 🔥', sub:'20% OFF — Sirf aaj!', btn:'Dekho', color:'#ff6b35,#c0392b', emoji:'🌶️', link:'masale'},
+  {id:3, title:'Fresh Dairy<br>Roz Aata Hai!', sub:'Guaranteed Fresh!', btn:'Order Karo', color:'#26a541,#1a7a2e', emoji:'🥛', link:'dairy'},
+  {id:4, title:'App Install<br>Karo Free!', sub:'Home screen par rakho', btn:'App Install Karo', color:'#7c3aed,#4c1d95', emoji:'📱', link:'install'},
+];
+
+function getBannersIdx(){
+  try{ return JSON.parse(localStorage.getItem('sm_banners') || 'null') || DEFAULT_BANNERS_IDX; }
+  catch(e){ return DEFAULT_BANNERS_IDX; }
+}
+
+function renderBanners(){
+  const banners = getBannersIdx();
+  const container = document.getElementById('bannerSlides');
+  const dotsEl = document.getElementById('bdots');
+  if(!container) return;
+  
+  container.innerHTML = banners.map((b, i) => {
+    const [c1, c2] = b.color.split(',');
+    const btnClick = b.link === 'install' ? 'installApp()' : b.link ? `filterCat('${b.link}')` : "showPage('home')";
+    return `<div class="bslide ${i===0?'on':''}" style="background:linear-gradient(135deg,${c1},${c2})">
+      <div class="btxt">
+        <h2>${b.title}</h2>
+        <p>${b.sub}</p>
+        <button class="bbtn" onclick="${btnClick}">${b.btn} →</button>
+      </div>
+      <div class="bemoji">${b.emoji}</div>
+    </div>`;
+  }).join('');
+  
+  if(dotsEl) dotsEl.innerHTML = banners.map((_,i) => 
+    `<span class="bdot ${i===0?'on':''}" onclick="goSlide(${i})"></span>`
+  ).join('');
+  
+  // Restart slider
+  startBannerSlider();
+}
+
+// Load banners from DB on startup
+async function loadBannersFromDB(){
+  try{
+    const res = await sbFetch('settings?key=eq.banners');
+    if(res && res.length > 0){
+      const banners = JSON.parse(res[0].value);
+      localStorage.setItem('sm_banners', JSON.stringify(banners));
+    }
+  }catch(e){}
+  renderBanners();
 }
 </script>
 </div><!-- /app-container -->
