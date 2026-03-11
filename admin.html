@@ -916,19 +916,14 @@ async function sbFetch(endpoint, method='GET', body=null, extraHeaders={}){
   if(method==='DELETE') headers['Prefer'] = 'return=minimal';
   const opts = {method, headers};
   if(body) opts.body = JSON.stringify(body);
-  try{
-    const res = await fetch(SUPABASE_URL + '/rest/v1/' + endpoint, opts);
-    if(!res.ok){
-      const errText = await res.text();
-      console.error('Supabase error:', res.status, errText);
-      return null;
-    }
-    const text = await res.text();
-    return text ? JSON.parse(text) : true;
-  }catch(e){
-    console.error('sbFetch error:', e);
-    return null;
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + endpoint, opts);
+  if(!res.ok){
+    const errText = await res.text().catch(()=>'');
+    console.warn('sbFetch', method, endpoint, res.status, errText.slice(0,80));
+    throw new Error('HTTP '+res.status);
   }
+  const text = await res.text();
+  return text ? JSON.parse(text) : true;
 }
 
 // Admin: Get all orders from DB
