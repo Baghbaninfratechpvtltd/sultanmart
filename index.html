@@ -1755,49 +1755,7 @@ function printInv(){
   const w=window.open('','_blank');
   w.document.write('<html><head><title>Invoice — Sultan Mart</title><style>body{font-family:Arial;padding:20px;font-size:12px}.inv-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #ccc}.inv-total{font-weight:700;font-size:14px;border-top:2px solid #333;padding-top:6px}h2{color:#1a6dd4;margin:0}</style></head><body>');
   w.document.write(document.getElementById('invoiceBody').innerHTML);
-  w.document.write('
-<!-- SELLER REGISTRATION MODAL -->
-<div id="sellerRegModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:flex-end;justify-content:center">
-  <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:24px;max-height:85vh;overflow-y:auto">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-      <h3 style="font-size:18px;font-weight:800;color:#1a6dd4">🏪 Register as Seller</h3>
-      <button onclick="document.getElementById('sellerRegModal').style.display='none'" style="background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
-    </div>
-    <p style="font-size:13px;color:#64748b;margin-bottom:16px">Sultan Mart par apna product beche — admin review ke baad account activate hoga</p>
-    <div style="display:flex;flex-direction:column;gap:12px">
-      <div>
-        <label style="font-size:12px;font-weight:600;color:#374151">Dukan ka Naam *</label>
-        <input id="sr_shop" type="text" placeholder="Jaise: Raju Kirana Store" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box">
-      </div>
-      <div>
-        <label style="font-size:12px;font-weight:600;color:#374151">Aapka Naam *</label>
-        <input id="sr_name" type="text" placeholder="Full naam" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box">
-      </div>
-      <div>
-        <label style="font-size:12px;font-weight:600;color:#374151">Mobile Number *</label>
-        <input id="sr_phone" type="tel" placeholder="10 digit mobile" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box">
-      </div>
-      <div>
-        <label style="font-size:12px;font-weight:600;color:#374151">Email</label>
-        <input id="sr_email" type="email" placeholder="Email (optional)" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box">
-      </div>
-      <div>
-        <label style="font-size:12px;font-weight:600;color:#374151">Address *</label>
-        <input id="sr_addr" type="text" placeholder="Dukan ka address" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box">
-      </div>
-      <div>
-        <label style="font-size:12px;font-weight:600;color:#374151">Kya beche? (categories)</label>
-        <input id="sr_cat" type="text" placeholder="Jaise: Chawal, Atta, Dal..." style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box">
-      </div>
-      <div id="sr_error" style="display:none;background:#fef2f2;color:#dc2626;padding:8px 12px;border-radius:8px;font-size:12px"></div>
-      <button onclick="submitSellerRequest()" style="background:linear-gradient(135deg,#1a6dd4,#0f4fa3);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;width:100%">
-        🏪 Request Bhejo
-      </button>
-    </div>
-  </div>
-</div>
-
-</body></html>');w.document.close();w.print();
+  w.document.write('</body></html>');w.document.close();w.print();
 }
 
 // ===== ACCOUNT =====
@@ -2255,5 +2213,46 @@ async function submitSellerRequest(){
   </div>
 </div>
 
+
+<!-- SELLER REGISTRATION MODAL -->
+<div id="sellerRegModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:flex-end;justify-content:center">
+  <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:24px;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="font-size:18px;font-weight:800;color:#1a6dd4">🏪 Register as Seller</h3>
+      <button onclick="document.getElementById('sellerRegModal').style.display='none'" style="background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer">×</button>
+    </div>
+    <p style="font-size:13px;color:#64748b;margin-bottom:16px">Sultan Mart par apna product beche — admin review ke baad account activate hoga</p>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#374151">Dukan ka Naam *</label>
+        <input id="sr_shop" type="text" placeholder="Jaise: Raju Kirana Store" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#374151">Aapka Naam *</label>
+        <input id="sr_name" type="text" placeholder="Full naam" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#374151">Mobile Number *</label>
+        <input id="sr_phone" type="tel" placeholder="10 digit mobile" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#374151">Email</label>
+        <input id="sr_email" type="email" placeholder="Email (optional)" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#374151">Address *</label>
+        <input id="sr_addr" type="text" placeholder="Dukan ka address" style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box">
+      </div>
+      <div>
+        <label style="font-size:12px;font-weight:600;color:#374151">Kya beche? (categories)</label>
+        <input id="sr_cat" type="text" placeholder="Jaise: Chawal, Atta, Dal..." style="width:100%;padding:10px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;margin-top:4px;box-sizing:border-box">
+      </div>
+      <div id="sr_error" style="display:none;background:#fef2f2;color:#dc2626;padding:8px 12px;border-radius:8px;font-size:12px"></div>
+      <button onclick="submitSellerRequest()" style="background:linear-gradient(135deg,#1a6dd4,#0f4fa3);color:#fff;border:none;border-radius:10px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;width:100%">
+        🏪 Request Bhejo
+      </button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
