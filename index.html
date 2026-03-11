@@ -14,7 +14,7 @@
 <meta name="apple-mobile-web-app-title" content="Sultan Mart">
 <meta name="application-name" content="Sultan Mart">
 <title>Sultan Mart – Bharatganj Prayagraj</title>
-<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Hind:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Hind:wght@400;500;600;700&family=Noto+Color+Emoji&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{
@@ -28,7 +28,7 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 
 /* ── DESKTOP WRAPPER ── */
-body{font-family:'Hind',sans-serif;background:#e8edf5;color:var(--text);min-height:100vh}
+body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:var(--text);min-height:100vh}
 
 /* Desktop: center the app with sidebar */
 .desktop-wrap{display:block;min-height:100vh;width:100%}
@@ -507,7 +507,7 @@ img{object-fit:cover}
       <button onclick="liveSearch()">🔍</button>
     </div>
     <div class="hdr-icons">
-      <button id="hdrInstallBtn" onclick="installApp()" style="display:none;background:#fff;color:#1a6dd4;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Baloo 2',cursive">⬇️ Install</button>
+      <button id="hdrInstallBtn" onclick="installApp()" style="display:none;background:#fff;color:#1a6dd4;border:none;border-radius:20px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Baloo 2',cursive">📲 App Install</button>
       <button class="hico" onclick="toggleWishlist()">❤️</button>
     </div>
   </div>
@@ -1193,26 +1193,55 @@ const POPULAR=['dal chawal','atta','ghee','masala','dahi','sabun','sarson tel','
 
 let cart={}, wishlist=new Set(), currentUser=null, orders=[];
 let currentCat='all', crOrderId=null, crMode='', chkAddr={}, chkStep=1;
-let deferredPrompt=null;
 
 // ===== PWA INSTALL =====
+// ===== PWA INSTALL SYSTEM =====
+let deferredPrompt = null;
+let isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
 window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault(); deferredPrompt=e;
-  // Show install button in header
-  const hdrBtn = document.getElementById('hdrInstallBtn');
-  if(hdrBtn) hdrBtn.style.display='inline-block';
-  // Also show hero button
-  const heroBtn = document.getElementById('heroInstallBtn');
-  if(heroBtn){ heroBtn.style.display='inline-block'; heroBtn.textContent='⬇️ Install App'; heroBtn.onclick=installApp; }
+  e.preventDefault();
+  deferredPrompt = e;
+  isInstalled = false;
+  updateInstallButtons();
   showInstallBanner();
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredPrompt = null;
+  isInstalled = true;
+  updateInstallButtons();
+  document.getElementById('installBannerWrap').innerHTML = '';
+  showToast('🎉 Sultan Mart app install ho gaya! Home screen par check karo!', 'success');
+});
+
+function updateInstallButtons(){
+  const hdrBtn = document.getElementById('hdrInstallBtn');
+  const heroBtn = document.getElementById('heroInstallBtn');
+  if(isInstalled){
+    if(hdrBtn){ hdrBtn.style.display='none'; }
+    if(heroBtn){ heroBtn.style.display='none'; }
+  } else if(deferredPrompt){
+    if(hdrBtn){ hdrBtn.style.display='inline-block'; hdrBtn.onclick=installApp; }
+    if(heroBtn){ heroBtn.style.display='inline-block'; heroBtn.textContent='⬇️ App Install Karo'; heroBtn.onclick=installApp; }
+  }
+}
+
+// Check on load if already installed
+window.addEventListener('DOMContentLoaded', ()=>{
+  if(isInstalled){
+    const hdrBtn = document.getElementById('hdrInstallBtn');
+    if(hdrBtn) hdrBtn.style.display='none';
+  }
+  updateInstallButtons();
 });
 function showInstallBanner(){
   document.getElementById('installBannerWrap').innerHTML=`
     <div class="install-banner">
       <span class="ico">📲</span>
       <div class="install-txt">
-        <strong>Sultan Mart App Install Karein</strong>
-        Apne phone mein app install karein
+        <strong>Sultan Mart App Install Karein (Free)</strong>
+        Play Store ki zaroorat nahi — seedha install karo!
       </div>
       <button class="install-btn" onclick="installApp()">⬇️ Install</button>
     </div>`;
@@ -1780,6 +1809,10 @@ function renderAccount(){
           <div class="fg"><label>🏠 Address</label><input id="rAddr" type="text" placeholder="Ghar ka address"></div>
           <button class="btn-full" onclick="doRegister()">✅ Account Banao</button>
         </div>
+      </div>
+      <div style="text-align:center;padding:16px 0 8px">
+        <span onclick="openSellerRegistration()" style="color:#1a6dd4;font-size:14px;font-weight:600;cursor:pointer;text-decoration:underline">🏪 Register as Seller</span>
+        <div style="font-size:11px;color:#94a3b8;margin-top:3px">Apna products Sultan Mart par beche</div>
       </div>
     </div>`;
     return;
