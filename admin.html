@@ -34,6 +34,8 @@ input,select,textarea{font-family:'Hind',sans-serif}
 .lerr{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#fca5a5;padding:9px 12px;border-radius:6px;font-size:12px;margin-bottom:12px;display:none}
 
 /* SIDEBAR */
+#sidebar{display:none}
+#main{display:none}
 .sidebar{width:230px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;z-index:100;transition:.3s}
 .sidebar.collapsed{width:64px}
 .s-logo{padding:20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
@@ -1076,6 +1078,8 @@ function doAdminLogin(){
 
 function showAdminUI(found){
   document.getElementById('loginScreen').style.display='none';
+  document.getElementById('sidebar').style.display='flex';
+  document.getElementById('main').style.display='block';
   document.getElementById('sidebarAv').textContent=found.name[0].toUpperCase();
   document.getElementById('sidebarName').textContent=found.name;
   document.getElementById('sidebarRole').textContent=found.role==='admin'?'Super Admin':found.role==='manager'?'Manager':'Staff';
@@ -2030,7 +2034,7 @@ async function editDeliveryBoyPin(name, currentPin){
   }
 }
 
-function removeDeliveryBoy(name){
+async function removeDeliveryBoy(name){
   const boys = getDeliveryBoysList().filter(b=>b.name!==name);
   localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
   renderDeliveryBoys();
