@@ -31,14 +31,15 @@
 body{font-family:'Hind',sans-serif;background:#e8edf5;color:var(--text);min-height:100vh}
 
 /* Desktop: center the app with sidebar */
-.desktop-wrap{display:flex;min-height:100vh;max-width:1280px;margin:0 auto;gap:0}
+.desktop-wrap{display:block;min-height:100vh;width:100%}
+
 
 /* ── MODERN SIDEBAR ── */
-.desk-sidebar{display:none}
+.desk-sidebar{display:none!important;visibility:hidden!important;width:0!important;overflow:hidden!important}
 @media(min-width:900px){
   .pimg-wrap{height:160px!important}
   .desk-sidebar{
-    display:flex;flex-direction:column;width:240px;flex-shrink:0;
+    display:none!important;flex-direction:column;width:0px;flex-shrink:0;
     background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);
     color:#fff;position:sticky;top:0;height:100vh;overflow-y:auto;
     border-right:1px solid rgba(255,255,255,.06);
@@ -151,7 +152,7 @@ body{font-family:'Hind',sans-serif;background:#e8edf5;color:var(--text);min-heig
 /* Tablet */
 @media(min-width:600px) and (max-width:899px){
   .app-container{max-width:100%}
-  .pgrid{grid-template-columns:repeat(3,1fr)!important}
+  .pgrid{grid-template-columns:repeat(4,1fr)!important}
   .search-results{grid-template-columns:repeat(3,1fr)!important}
 }
 a{text-decoration:none;color:inherit}
