@@ -34,10 +34,10 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
 /* ── MODERN SIDEBAR ── */
 .desk-sidebar{display:none!important;visibility:hidden!important;width:0!important;overflow:hidden!important}
 @media(min-width:900px){
-  .pimg-wrap{height:160px!important}
-  .pcard{font-size:12px}
-  .pinfo{padding:6px 8px 6px}
-  .pname{font-size:12px;height:auto;min-height:0;margin:2px 0 3px;-webkit-line-clamp:2}
+  .pimg-wrap{height:160px!important;background:linear-gradient(135deg,#f0f4ff,#e8f0fe)}
+  .pcard{font-size:12px;overflow:hidden}
+  .pinfo{padding:6px 8px 8px}
+  .pname{font-size:12px;height:auto;min-height:0;margin:2px 0 3px;-webkit-line-clamp:2;white-space:normal}
   .pbrand{font-size:11px;display:block}
   .pnow{font-size:14px}
   .price-row{margin:2px 0}
@@ -161,7 +161,7 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
 }
 a{text-decoration:none;color:inherit}
 button{cursor:pointer;font-family:'Hind',sans-serif;border:none}
-img{object-fit:cover}
+img{object-fit:cover;max-width:100%}
 
 /* ── HEADER ── */
 .hdr{background:var(--primary);position:sticky;top:0;z-index:200;padding-top:var(--safe-top);box-shadow:0 2px 8px rgba(0,0,0,.2)}
@@ -249,7 +249,7 @@ img{object-fit:cover}
 .pbadge{position:absolute;top:5px;left:5px;z-index:2;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:800;color:#fff}
 .pb-off{background:var(--accent)}.pb-new{background:var(--green)}.pb-hot{background:#e91e63}
 .pimg-wrap{width:100%;height:140px;position:relative;overflow:hidden;background:linear-gradient(135deg,#f0f4ff,#e8f0fe)}
-.pimg-wrap img{width:100%;height:100%;object-fit:contain;padding:8px;transition:.3s}
+.pimg-wrap img{width:100%;height:100%;object-fit:contain!important;padding:10px;transition:.3s;display:block}
 .pimg-wrap .pemo{font-size:64px;display:flex;align-items:center;justify-content:center;height:100%}
 .pwishlist{position:absolute;top:4px;right:4px;background:#fff;border:none;width:22px;height:22px;border-radius:50%;font-size:11px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.2);z-index:2}
 .pinfo{padding:5px 6px 4px}
