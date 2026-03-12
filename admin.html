@@ -1756,13 +1756,7 @@ function printQR(){
     <p>PhonePe • GPay • Paytm • BHIM se scan karein</p>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
     <script>new QRCode(document.getElementById('qr'),{text:'upi://pay?pa=9559868648@ptyes&pn=SultanMart&cu=INR',width:200,height:200});<\/script>
-    
-  <!-- Service Worker -->
-  <script>
-    if('serviceWorker' in navigator){
-      navigator.serviceWorker.register('/sw.js').catch(()=>{});
-    }
-  </script>
+
 </body></html>`);
   w.document.close(); setTimeout(()=>w.print(),800);
 }
