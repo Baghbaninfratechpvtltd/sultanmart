@@ -2006,7 +2006,7 @@ async function saveDeliveryBoystoDB(boys){
         'Content-Type': 'application/json',
         'Prefer': 'resolution=merge-duplicates,return=minimal'
       },
-      body: JSON.stringify({key: 'delivery_boys', value: boys})
+      body: JSON.stringify({key: 'delivery_boys', value: JSON.stringify(boys)})
     });
     if(!res.ok){
       const err = await res.text();
@@ -2033,6 +2033,10 @@ async function loadDeliveryBoysFromDB(){
       localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
       renderDeliveryBoys();
       console.log('✅ Delivery boys DB se loaded:', boys);
+    } else {
+      // DB mein kuch nahi - empty render karo
+      localStorage.setItem('sm_delivery_boys', JSON.stringify([]));
+      renderDeliveryBoys();
     }
   }catch(e){
     console.log('DB boys load failed:', e);
@@ -2082,14 +2086,18 @@ async function editDeliveryBoyPin(name, currentPin){
 }
 
 async function removeDeliveryBoy(name){
+  if(!confirm('"'+name+'" ko delivery list se remove karna chahte hain?')) return;
   const boys = getDeliveryBoysList().filter(b=>b.name!==name);
   localStorage.setItem('sm_delivery_boys', JSON.stringify(boys));
   renderDeliveryBoys();
+  showToast('⏳ Remove ho raha hai...','success');
   const ok = await saveDeliveryBoystoDB(boys);
   if(ok){
-    showToast('🗑️ '+name+' remove ho gaya!','success');
+    showToast('✅ "'+name+'" permanently remove ho gaya!','success');
   } else {
-    showToast('🗑️ '+name+' remove hua (DB sync nahi hua)','error');
+    showToast('❌ DB save fail hua — internet check karo, dobara try karo','error');
+    // Fail hone par localStorage bhi revert karo
+    loadDeliveryBoysFromDB();
   }
 }
 function renderDeliveryBoys(){
