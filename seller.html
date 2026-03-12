@@ -746,5 +746,12 @@ function showToast(msg,type=''){
   setTimeout(()=>t.classList.remove('show'),3000);
 }
 </script>
+
+  <!-- Service Worker -->
+  <script>
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register('/sw.js').catch(()=>{});
+    }
+  </script>
 </body>
 </html>
