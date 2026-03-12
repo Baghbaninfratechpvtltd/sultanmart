@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sultanmart-v8';
+const CACHE_NAME = 'sultanmart-v9';
 const ASSETS = [
   '/',
   '/index.html',
