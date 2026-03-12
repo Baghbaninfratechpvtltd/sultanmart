@@ -2159,6 +2159,10 @@ async function submitSellerRequest(){
   
   errEl.style.display='none';
   
+  // Generate seller ID and temp password
+  const sellerId = 'SM-' + phone.slice(-4) + '-' + String(Date.now()).slice(-3);
+  const tempPass = 'SM' + phone.slice(-4) + '!';
+  
   // Save to Supabase sellers table
   try{
     const res = await fetch(SUPABASE_URL + '/rest/v1/sellers', {
@@ -2170,24 +2174,27 @@ async function submitSellerRequest(){
         'Prefer': 'return=representation, resolution=ignore-duplicates'
       },
       body: JSON.stringify({
+        seller_id: sellerId,
         shop_name: shop,
         name: name,
         phone: phone,
         email: document.getElementById('sr_email').value.trim() || null,
         address: addr,
         categories: document.getElementById('sr_cat').value.trim() || null,
+        password: tempPass,
         status: 'pending',
         created_at: new Date().toISOString()
       })
     });
     
     document.getElementById('sellerRegModal').style.display='none';
-    showToast('✅ Request bhej di! Admin review ke baad contact karega.');
+    showToast('✅ Request bhej di! Admin approve karega.');
+    // Show seller credentials
+    alert('🎉 Registration ho gaya!\n\nAapka Seller ID: ' + sellerId + '\nPassword: ' + tempPass + '\n\nYaad rakhein ya note kar lein!\nAdmin approval ke baad seller.html par login kar sakte ho.');
     
   }catch(e){
-    // Fallback - local save
     document.getElementById('sellerRegModal').style.display='none';
-    showToast('✅ Request save ho gayi! Sultan Mart team jald contact karegi.');
+    showToast('❌ Network error. Dobara try karo.');
   }
 }
 
