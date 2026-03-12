@@ -34,14 +34,14 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
 /* ── MODERN SIDEBAR ── */
 .desk-sidebar{display:none!important;visibility:hidden!important;width:0!important;overflow:hidden!important}
 @media(min-width:900px){
-  .pimg-wrap{height:110px!important}
-  .pcard{font-size:11px}
-  .pinfo{padding:3px 5px 3px}
-  .pname{font-size:11px;height:auto;min-height:0;margin:1px 0 1px;-webkit-line-clamp:1}
-  .pbrand{font-size:10px;display:none}
-  .pnow{font-size:13px}
-  .price-row{margin:1px 0}
-  .padd-btn{padding:5px;font-size:11px}
+  .pimg-wrap{height:160px!important}
+  .pcard{font-size:12px}
+  .pinfo{padding:6px 8px 6px}
+  .pname{font-size:12px;height:auto;min-height:0;margin:2px 0 3px;-webkit-line-clamp:2}
+  .pbrand{font-size:11px;display:block}
+  .pnow{font-size:14px}
+  .price-row{margin:2px 0}
+  .padd-btn{padding:6px;font-size:12px}
   .desk-sidebar{
     display:none!important;flex-direction:column;width:0px;flex-shrink:0;
     background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);
@@ -2062,15 +2062,15 @@ initSearch();
 updateCartBadge();
 
 // ===== AUTO REFRESH =====
-// Products har 30 second mein refresh
+// Products har 30 second mein refresh (admin ne kuch change kiya ho to customer ko dikhe)
 setInterval(async ()=>{
   try{
     const newProds = await getProductsFromDB();
     if(newProds && newProds.length > 0){
       DB_PRODUCTS = newProds;
       renderCategories();
-      const activeCat = document.querySelector('.cat-btn.active');
-      if(activeCat) filterCat(activeCat.dataset.cat || 'all');
+      // Current active category ko re-render karo
+      filterCat(currentCat || 'all');
     }
   }catch(e){}
 }, 30000);
@@ -2100,21 +2100,20 @@ setInterval(async ()=>{
   }catch(e){}
 }, 8000);
 
-// Settings/Deals har 20 second mein refresh (admin ne kuch change kiya ho to)
+// Settings/Deals/Banners har 20 second mein refresh (admin ne kuch change kiya ho to)
 setInterval(async ()=>{
   try{
+    // Shop settings refresh (deal strip, logo, name)
     const settingRes = await sbFetch('settings?key=eq.shop_settings');
     if(settingRes && settingRes[0]){
       const s = settingRes[0].value;
       localStorage.setItem('sm_settings', JSON.stringify(s));
-      // Deal strip update karo
       if(s.dealItems && s.dealItems.length){
         const txt = s.dealItems.filter(d=>d.active).map(d=>d.text).join(' | ');
         const doubled = txt + ' &nbsp;&nbsp;&nbsp; ' + txt;
         const dealEl = document.getElementById('dealStrip');
         if(dealEl) dealEl.innerHTML = doubled;
       }
-      // Shop name/logo update
       if(s.shopName){
         const logoEl = document.getElementById('logoName');
         if(logoEl){
@@ -2125,6 +2124,19 @@ setInterval(async ()=>{
           }
         }
       }
+    }
+    // Banner refresh - admin ne naya banner add kiya ho to turant dikhe
+    const bannerRes = await sbFetch('settings?key=eq.banners');
+    if(bannerRes && bannerRes[0]){
+      try{
+        const newBanners = JSON.parse(bannerRes[0].value);
+        const oldBanners = JSON.parse(localStorage.getItem('sm_banners') || '[]');
+        // Sirf tab re-render karo jab banners actually change hue hon
+        if(JSON.stringify(newBanners) !== JSON.stringify(oldBanners)){
+          localStorage.setItem('sm_banners', JSON.stringify(newBanners));
+          renderBanners();
+        }
+      }catch(e){}
     }
   }catch(e){}
 }, 20000);
