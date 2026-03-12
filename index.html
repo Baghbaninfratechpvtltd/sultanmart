@@ -1256,9 +1256,9 @@ function showInstallBanner(){
       <button class="install-btn" onclick="installApp()">⬇️ Install</button>
     </div>`;
 }
-async function installApp(){
+async async function installApp(){
   if(!deferredPrompt){
-    showToast('💡 Chrome menu (⋮) → "Add to Home screen" click karo!');
+    window.location.href = '/install.html';
     return;
   }
   deferredPrompt.prompt();
@@ -2171,7 +2171,7 @@ async function submitSellerRequest(){
         'apikey': SUPABASE_KEY,
         'Authorization': 'Bearer ' + SUPABASE_KEY,
         'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
+        'Prefer': 'return=representation, resolution=ignore-duplicates'
       },
       body: JSON.stringify({
         shop_name: shop,
