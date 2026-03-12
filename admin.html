@@ -1628,7 +1628,7 @@ async function saveProd(){
   if(!name||!brand||!price||!mrp){showToast('❌ Naam, Brand, Price aur MRP zaroori hai!','error');return;}
   const editId=document.getElementById('editProdId').value;
   const fileInput = document.getElementById('pImgFile');
-  const imgData = (fileInput._dataUrl) || document.getElementById('pImgUrl').value.trim() || '';
+  const imgData = (fileInput && fileInput._dataUrl) || document.getElementById('pImgUrl').value.trim() || '';
   const prod={
     name,brand,cat:document.getElementById('pCat').value,
     e:document.getElementById('pEmoji').value||'📦',
@@ -1646,32 +1646,21 @@ async function saveProd(){
     showToast('✅ Naya product add ho gaya!','success');
   }
   saveProducts();
-  // Supabase mein sync karo - customer ko auto update milega
-  try{
-    const dbProd = {
-      name: prod.name,
-      price: prod.p,
-      mrp: prod.m,
-      unit: prod.unit,
-      category: prod.cat,
-      emoji: prod.e,
-      image: prod.img||null,
-      stock: prod.stock,
-      active: true
-    };
-    if(editId && parseInt(editId) > 1000000){ // localStorage id
-      // Old localStorage product - add as new in DB
-      await sbFetch('products', 'POST', dbProd);
-    } else if(editId){
-      await sbFetch('products?id=eq.'+editId, 'PATCH', dbProd);
-    } else {
-      await sbFetch('products', 'POST', dbProd);
-    }
-    // Re-seed all products to DB for full sync
-    await syncAllProductsToDB();
-  }catch(e){ console.log('Product DB sync failed:', e); }
+  // TURANT close karo - user ko wait mat karao
   closeModal('modal-product');
   renderProductsAdmin();
+  // DB sync background mein karo (non-blocking)
+  (async()=>{
+    try{
+      const dbProd={name:prod.name,price:prod.p,mrp:prod.m,unit:prod.unit,category:prod.cat,emoji:prod.e,image:prod.img||null,stock:prod.stock,active:true};
+      if(editId && parseInt(editId)<=1000000){
+        await sbFetch('products?id=eq.'+editId,'PATCH',dbProd);
+      } else {
+        await sbFetch('products','POST',dbProd);
+      }
+      await syncAllProductsToDB();
+    }catch(e){console.log('DB sync failed:',e);}
+  })();
 }
 
 async function deleteProd(id){
@@ -1780,7 +1769,7 @@ function renderStaff(){
         <h4>${s.name} <span class="role-badge ${roleClass[s.role]||'role-staff'}">${roleLabel[s.role]||s.role}</span></h4>
         <p>@${s.username} • 📞 ${s.phone}</p>
       </div>
-      ${s.role!=='admin'&&currentAdmin?.role==='admin'?`<button class="btn btn-cancel btn-sm" onclick="removeStaff(${s.id})">🗑️ Remove</button>`:''}
+      ${s.role!=='admin'&&(currentAdmin?.role==='admin'||currentAdmin?.role==='manager')?`<button class="btn btn-cancel btn-sm" onclick="removeStaff(${s.id})">🗑️ Delete</button>`:''}
     </div>`).join('');
 }
 function openAddStaff(){openModal('modal-staff');}
@@ -1804,14 +1793,22 @@ async function addStaff(){
   showToast('✅ Staff add ho gaya!','success');
 }
 async function removeStaff(id){
-  if(!confirm('Staff remove karein?'))return;
+  if(!confirm('Kya aap is staff ko delete karna chahte hain? Yeh login nahi kar payega.'))return;
+  const staffMember = STAFF.find(s=>s.id===id);
   STAFF=STAFF.filter(s=>s.id!==id);
+  // localStorage se bhi hatao
   localStorage.setItem('sm_staff',JSON.stringify(STAFF));
+  // Supabase settings mein bhi update karo
   try{
-    await sbFetch('settings?key=eq.staff_list','PATCH',{value:JSON.stringify(STAFF)});
+    const ex=await sbFetch('settings?key=eq.staff_list');
+    if(ex&&ex.length>0){
+      await sbFetch('settings?key=eq.staff_list','PATCH',{value:JSON.stringify(STAFF)});
+    } else {
+      await sbFetch('settings','POST',{key:'staff_list',value:JSON.stringify(STAFF)});
+    }
   }catch(e){}
   renderStaff();
-  showToast('🗑️ Staff remove ho gaya!');
+  showToast('🗑️ Staff delete ho gaya! Ab login nahi kar payega.','success');
 }
 
 // ===== SETTINGS =====
