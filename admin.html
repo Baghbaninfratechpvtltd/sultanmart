@@ -1003,9 +1003,8 @@ async function loadAllOrdersWithDB(){
 // ===== STAFF ACCOUNTS =====
 let STAFF = [
   {id:1,name:'Sultan Ahmad',username:'admin',pass:'Admin@2024',role:'admin',phone:'9559868648'},
-  {id:2,name:'Raju Manager',username:'manager',pass:'Manager@2024',role:'manager',phone:'9876543210'},
-  {id:3,name:'Aslam Staff',username:'staff1',pass:'Staff@2024',role:'staff',phone:'9988776655'},
 ];
+// Note: Sirf admin hardcoded hai - baaki sab localStorage/DB se load hote hain
 let currentAdmin = null;
 
 // Auto-login if session exists
@@ -1014,7 +1013,9 @@ let currentAdmin = null;
     const session = JSON.parse(localStorage.getItem('sm_admin_session')||'null');
     if(!session) return;
     // Get latest STAFF list (may have been updated)
-    const allStaff = JSON.parse(localStorage.getItem('sm_staff')||'null') || STAFF;
+    // localStorage se staff lo, agar nahi to sirf admin
+    const savedStaff = JSON.parse(localStorage.getItem('sm_staff')||'null');
+    const allStaff = savedStaff || STAFF;
     const found = allStaff.find(s=>s.username===session.username && s.pass===session.pass);
     if(found){
       currentAdmin = found;
@@ -1155,10 +1156,14 @@ async function initDashboard(){
     if(staffData && staffData.length > 0){
       const dbStaff = JSON.parse(staffData[0].value);
       if(dbStaff && dbStaff.length > 0){
-        // Merge - keep default admin but add DB staff
-        const defaultIds = [1,2,3];
-        const extraStaff = dbStaff.filter(s=>!defaultIds.includes(s.id));
-        STAFF = [...STAFF.filter(s=>defaultIds.includes(s.id)), ...extraStaff];
+        // Admin (id:1) hamesha rakho, baki sab DB se lo
+        const adminEntry = STAFF.find(s=>s.id===1);
+        const nonAdminStaff = dbStaff.filter(s=>s.id!==1);
+        STAFF = adminEntry ? [adminEntry, ...nonAdminStaff] : dbStaff;
+        localStorage.setItem('sm_staff', JSON.stringify(STAFF));
+      } else {
+        // DB mein kuch nahi - sirf admin rakho
+        STAFF = STAFF.filter(s=>s.id===1);
         localStorage.setItem('sm_staff', JSON.stringify(STAFF));
       }
     }
@@ -1769,7 +1774,7 @@ function renderStaff(){
         <h4>${s.name} <span class="role-badge ${roleClass[s.role]||'role-staff'}">${roleLabel[s.role]||s.role}</span></h4>
         <p>@${s.username} • 📞 ${s.phone}</p>
       </div>
-      ${s.role!=='admin'&&(currentAdmin?.role==='admin'||currentAdmin?.role==='manager')?`<button class="btn btn-cancel btn-sm" onclick="removeStaff(${s.id})">🗑️ Delete</button>`:''}
+      ${s.role!=='admin'&&(currentAdmin?.role==='admin'||currentAdmin?.role==='manager')?`<button class="btn btn-cancel btn-sm" style="margin-left:auto" onclick="removeStaff(${s.id})">🗑️ Delete</button>`:''}
     </div>`).join('');
 }
 function openAddStaff(){openModal('modal-staff');}
@@ -1793,22 +1798,24 @@ async function addStaff(){
   showToast('✅ Staff add ho gaya!','success');
 }
 async function removeStaff(id){
-  if(!confirm('Kya aap is staff ko delete karna chahte hain? Yeh login nahi kar payega.'))return;
-  const staffMember = STAFF.find(s=>s.id===id);
-  STAFF=STAFF.filter(s=>s.id!==id);
-  // localStorage se bhi hatao
-  localStorage.setItem('sm_staff',JSON.stringify(STAFF));
-  // Supabase settings mein bhi update karo
+  const member = STAFF.find(s=>s.id===id);
+  if(!member) return;
+  if(member.role==='admin'){showToast('❌ Admin ko delete nahi kar sakte!','error');return;}
+  if(!confirm('"'+member.name+'" ko delete karna chahte hain? Yeh dobara login nahi kar payega.'))return;
+  STAFF = STAFF.filter(s=>s.id!==id);
+  // localStorage update karo
+  localStorage.setItem('sm_staff', JSON.stringify(STAFF));
+  // Supabase mein bhi permanently delete karo
   try{
-    const ex=await sbFetch('settings?key=eq.staff_list');
-    if(ex&&ex.length>0){
-      await sbFetch('settings?key=eq.staff_list','PATCH',{value:JSON.stringify(STAFF)});
+    const ex = await sbFetch('settings?key=eq.staff_list');
+    if(ex && ex.length > 0){
+      await sbFetch('settings?key=eq.staff_list', 'PATCH', {value: JSON.stringify(STAFF)});
     } else {
-      await sbFetch('settings','POST',{key:'staff_list',value:JSON.stringify(STAFF)});
+      await sbFetch('settings', 'POST', {key:'staff_list', value: JSON.stringify(STAFF)});
     }
-  }catch(e){}
+  }catch(e){ console.log('Staff delete DB error:', e); }
   renderStaff();
-  showToast('🗑️ Staff delete ho gaya! Ab login nahi kar payega.','success');
+  showToast('🗑️ "'+member.name+'" delete ho gaya — ab login nahi kar payega!','success');
 }
 
 // ===== SETTINGS =====
@@ -2122,7 +2129,7 @@ async function saveSettings(){
   }catch(e){ console.log('Settings DB save failed'); }
   showToast('✅ Settings save ho gayi!','success');
 }
-function changePass(){
+async function changePass(){
   const cur=document.getElementById('curPass').value;
   const nw=document.getElementById('newPass').value;
   const cf=document.getElementById('confPass').value;
@@ -2131,8 +2138,18 @@ function changePass(){
   if(nw.length<6){showToast('❌ Password kam se kam 6 characters ka ho!','error');return;}
   currentAdmin.pass=nw;
   const idx=STAFF.findIndex(s=>s.id===currentAdmin.id);
-  if(idx>=0)STAFF[idx].pass=nw;
-  showToast('✅ Password change ho gaya!','success');
+  if(idx>=0) STAFF[idx].pass=nw;
+  localStorage.setItem('sm_staff',JSON.stringify(STAFF));
+  localStorage.setItem('sm_admin_session',JSON.stringify({username:currentAdmin.username,pass:nw}));
+  try{
+    const ex=await sbFetch('settings?key=eq.staff_list');
+    if(ex&&ex.length>0){
+      await sbFetch('settings?key=eq.staff_list','PATCH',{value:JSON.stringify(STAFF)});
+    } else {
+      await sbFetch('settings','POST',{key:'staff_list',value:JSON.stringify(STAFF)});
+    }
+  }catch(e){console.log('Password save DB error:',e);}
+  showToast('✅ Password change ho gaya! Naya password: '+nw,'success');
   ['curPass','newPass','confPass'].forEach(id=>document.getElementById(id).value='');
 }
 
