@@ -226,7 +226,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <div class="login-logo">
       <div style="font-size:48px">🛒</div>
       <h1>Sultan Mart</h1>
-      <p>Admin Dashboard — Bharatganj, Prayagraj</p>
+      <p id="loginSubtitle">Admin Dashboard — Bharatganj, Prayagraj</p>
     </div>
     <div class="lerr" id="loginErr">❌ Galat username ya password!</div>
     <div class="lfield"><label>👤 Username</label><input type="text" id="lu" placeholder="admin ya staff username"></div>
@@ -1097,6 +1097,8 @@ function showAdminUI(found){
   document.getElementById('sidebarAv').textContent=found.name[0].toUpperCase();
   document.getElementById('sidebarName').textContent=found.name;
   document.getElementById('sidebarRole').textContent=found.role==='admin'?'Super Admin':found.role==='manager'?'Manager':'Staff';
+  const panelName = found.role==='admin'?'Admin Panel':found.role==='manager'?'Manager Panel':'Staff Panel';
+  document.title = 'Sultan Mart — ' + panelName;
   initDashboard();
 }
 function adminLogout(){
