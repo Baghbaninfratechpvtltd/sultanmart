@@ -2282,36 +2282,30 @@ async function refreshSellers(){
         </span>
       </td>
       <td style="padding:8px;display:flex;gap:4px;flex-wrap:wrap">
-        ${s.status!=='active'?`<button onclick="updateSellerStatusDB('${s.seller_id||s.id}','active')" style="background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">✅ Approve</button>`:''}
-        ${s.status!=='blocked'?`<button onclick="updateSellerStatusDB('${s.seller_id||s.id}','blocked')" style="background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">❌ Block</button>`:''}
+        ${s.status!=='active'?`<button onclick="updateSellerStatusDB(${s.id},'${s.seller_id||''}','active')" style="background:rgba(34,197,94,.1);color:var(--green);border:1px solid rgba(34,197,94,.3);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">✅ Approve</button>`:''}
+        ${s.status!=='blocked'?`<button onclick="updateSellerStatusDB(${s.id},'${s.seller_id||''}','blocked')" style="background:rgba(239,68,68,.1);color:var(--red);border:1px solid rgba(239,68,68,.3);border-radius:6px;padding:3px 8px;font-size:10px;cursor:pointer">❌ Block</button>`:''}
       </td>
     </tr>`).join('')}
     </tbody></table>`;
 }
 
-async function updateSellerStatusDB(sellerId, newStatus){
+async function updateSellerStatusDB(numericId, sellerId, newStatus){
   try{
-    // Try by seller_id first, fallback to numeric id
-    let url = SUPABASE_URL + '/rest/v1/sellers?seller_id=eq.' + encodeURIComponent(sellerId);
-    const res = await fetch(url, {
+    // Always use numeric id - 100% reliable
+    const res = await fetch(SUPABASE_URL + '/rest/v1/sellers?id=eq.' + numericId, {
       method:'PATCH',
       headers:{ 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
       body: JSON.stringify({status: newStatus})
     });
-    if(res.ok){ 
-      showToast(newStatus==='active'?'✅ Seller approve ho gaya!':'❌ Seller block kiya', newStatus==='active'?'success':'error'); 
-      refreshSellers(); 
+    if(res.ok){
+      showToast(newStatus==='active'?'✅ Seller approve ho gaya!':'❌ Seller block kiya', newStatus==='active'?'success':'error');
+      refreshSellers();
     } else {
-      // Fallback: try numeric id
-      const res2 = await fetch(SUPABASE_URL + '/rest/v1/sellers?id=eq.' + sellerId, {
-        method:'PATCH',
-        headers:{ 'apikey':SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY, 'Content-Type':'application/json', 'Prefer':'return=minimal' },
-        body: JSON.stringify({status: newStatus})
-      });
-      if(res2.ok){ showToast(newStatus==='active'?'✅ Seller approve ho gaya!':'❌ Seller block kiya', newStatus==='active'?'success':'error'); refreshSellers(); }
-      else showToast('❌ Update failed - Supabase error','error');
+      const errText = await res.text();
+      showToast('❌ Update failed: ' + res.status,'error');
+      console.error('PATCH failed:', res.status, errText);
     }
-  }catch(e){ showToast('❌ Network error','error'); }
+  }catch(e){ showToast('❌ Network error','error'); console.error(e); }
 }
 function toggleSellerStatus(id, s){ updateSellerStatusDB(id, s); }
 function updateSellerCommission(id, val){ showToast('✅ Noted!','success'); }
