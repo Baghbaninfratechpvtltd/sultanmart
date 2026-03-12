@@ -252,6 +252,16 @@ body{font-family:'Hind',sans-serif;background:var(--bg);color:var(--text);min-he
     <div class="modal-body">
       <div class="fg"><label>📦 Product Naam *</label><input type="text" id="pName" placeholder="Product ka naam"></div>
       <div class="fg"><label>🏷️ Brand</label><input type="text" id="pBrand" placeholder="Brand naam (optional)"></div>
+      <div class="fg">
+        <label>🖼️ Product Image</label>
+        <input type="text" id="pImgUrl" placeholder="Image URL (Google se copy karo) ya neeche upload karo">
+        <div style="margin-top:6px">
+          <input type="file" id="pImgFile" accept="image/*" style="font-size:12px;width:100%" onchange="previewSellerImg(this)">
+        </div>
+        <div id="pImgPreview" style="margin-top:8px;display:none">
+          <img id="pImgPreviewImg" src="" style="width:80px;height:80px;object-fit:contain;border:1px solid #e2e8f0;border-radius:8px;padding:4px">
+        </div>
+      </div>
       <div class="fg"><label>📂 Category</label>
         <select id="pCat">
           <option value="atta-chawal">🌾 Atta-Chawal</option>
@@ -263,6 +273,7 @@ body{font-family:'Hind',sans-serif;background:var(--bg);color:var(--text);min-he
           <option value="snacks">🍟 Snacks</option>
           <option value="puja">🪔 Puja</option>
           <option value="sabun">🧼 Sabun</option>
+          <option value="other">🛍️ Other</option>
         </select>
       </div>
       <div class="fg-row">
@@ -558,9 +569,12 @@ function renderProducts() {
 function openAddProduct() {
   editingProductId = null;
   document.getElementById('modalProductTitle').textContent = '➕ Naya Product';
-  ['pName','pBrand','pPrice','pMrp','pStock','pUnit','pDesc'].forEach(function(id) { document.getElementById(id).value = ''; });
+  ['pName','pBrand','pPrice','pMrp','pStock','pUnit','pDesc','pImgUrl'].forEach(function(id) { document.getElementById(id).value = ''; });
   document.getElementById('pEmoji').value = '🛒';
   document.getElementById('pStock').value = '10';
+  var fi = document.getElementById('pImgFile');
+  if(fi){ fi.value=''; fi._dataUrl=''; }
+  document.getElementById('pImgPreview').style.display = 'none';
   openModal('modalProduct');
 }
 
@@ -582,12 +596,26 @@ function editProduct(id) {
   openModal('modalProduct');
 }
 
+function previewSellerImg(input) {
+  if (input.files && input.files[0]) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('pImgPreviewImg').src = e.target.result;
+      document.getElementById('pImgPreview').style.display = 'block';
+      input._dataUrl = e.target.result;
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
 function saveProduct() {
   var name = document.getElementById('pName').value.trim();
   var price = parseInt(document.getElementById('pPrice').value) || 0;
   if (!name || !price) { showToast('❌ Naam aur price zaroori hai!', 'error'); return; }
   var allProducts = JSON.parse(localStorage.getItem('sm_products') || '[]');
   var sid = currentSeller.seller_id || currentSeller.id;
+  var fileInput = document.getElementById('pImgFile');
+  var imgData = (fileInput && fileInput._dataUrl) || document.getElementById('pImgUrl').value.trim() || '';
   var productData = {
     name: name,
     brand: document.getElementById('pBrand').value.trim(),
@@ -598,6 +626,7 @@ function saveProduct() {
     unit: document.getElementById('pUnit').value.trim(),
     e: document.getElementById('pEmoji').value || '🛒',
     desc: document.getElementById('pDesc').value.trim(),
+    img: imgData,
     sellerId: sid,
     sellerName: currentSeller.shop_name || currentSeller.shopName
   };
