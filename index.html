@@ -1256,7 +1256,7 @@ function showInstallBanner(){
       <button class="install-btn" onclick="installApp()">⬇️ Install</button>
     </div>`;
 }
-async async function installApp(){
+async function installApp(){
   if(!deferredPrompt){
     window.location.href = '/install.html';
     return;
