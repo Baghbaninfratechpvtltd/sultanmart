@@ -1997,26 +1997,44 @@ function getDeliveryBoyNames(){
 
 async function saveDeliveryBoystoDB(boys){
   try{
-    // Direct fetch with UPSERT - most reliable
-    const res = await fetch(SUPABASE_URL + '/rest/v1/settings', {
-      method: 'POST',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_KEY,
-        'Content-Type': 'application/json',
-        'Prefer': 'resolution=merge-duplicates,return=minimal'
-      },
-      body: JSON.stringify({key: 'delivery_boys', value: JSON.stringify(boys)})
-    });
+    const valStr = JSON.stringify(boys);
+    // Pehle check karo - exists hai ya nahi
+    const existing = await sbFetch('settings?key=eq.delivery_boys');
+    let res;
+    if(existing && existing.length > 0){
+      // UPDATE (PATCH)
+      res = await fetch(SUPABASE_URL + '/rest/v1/settings?key=eq.delivery_boys', {
+        method: 'PATCH',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({value: valStr})
+      });
+    } else {
+      // INSERT (POST)
+      res = await fetch(SUPABASE_URL + '/rest/v1/settings', {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_KEY,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({key: 'delivery_boys', value: valStr})
+      });
+    }
     if(!res.ok){
       const err = await res.text();
-      console.error('Save failed:', err);
+      console.error('Delivery boys save failed:', err);
       return false;
     }
-    console.log('✅ Boys saved to DB:', boys);
+    console.log('✅ Delivery boys saved to DB:', boys.length, 'boys');
     return true;
   }catch(e){
-    console.error('Boys save to DB failed:', e);
+    console.error('Delivery boys save error:', e);
     return false;
   }
 }
