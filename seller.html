@@ -422,22 +422,27 @@ function showRegForm(){
   document.getElementById('loginErr').style.display='none';
 }
 
-function doSellerLogin(){
+async function doSellerLogin(){
   const id = document.getElementById('lSellerId').value.trim().toUpperCase();
   const pass = document.getElementById('lPassword').value;
   const errEl = document.getElementById('loginErr');
   if(!id||!pass){ errEl.textContent='❌ Seller ID aur Password bharo!'; errEl.style.display='block'; return; }
-  const sellers = getAllSellers();
-  const found = sellers.find(s=>s.id===id && s.password===pass);
-  if(!found){ errEl.textContent='❌ Galat Seller ID ya Password!'; errEl.style.display='block'; return; }
-  if(found.status==='pending'){ errEl.textContent='⏳ Aapka account admin approval ka wait kar raha hai!'; errEl.style.display='block'; return; }
-  if(found.status==='blocked'){ errEl.textContent='❌ Aapka account block kar diya gaya hai. Admin se contact karein.'; errEl.style.display='block'; return; }
+  errEl.textContent='⏳ Login ho raha hai...'; errEl.style.display='block'; errEl.style.color='#f59e0b';
+  // Check Supabase first
+  const data = await sbFetch('sellers?seller_id=eq.'+encodeURIComponent(id)+'&password=eq.'+encodeURIComponent(pass));
+  errEl.style.color='';
+  if(!data || data.length===0){
+    errEl.textContent='❌ Galat Seller ID ya Password!'; errEl.style.display='block'; return;
+  }
+  const found = data[0];
+  if(found.status==='pending'){ errEl.textContent='⏳ Aapka account admin approval ka wait kar raha hai. Jald hi approve kiya jayega!'; errEl.style.display='block'; errEl.style.color='#f59e0b'; return; }
+  if(found.status==='blocked'){ errEl.textContent='❌ Aapka account block kar diya gaya hai. Admin se contact karein: 9559868648'; errEl.style.display='block'; errEl.style.color='#ef4444'; return; }
   currentSeller = found;
-  localStorage.setItem('sm_seller_session', JSON.stringify({id:found.id, password:found.password}));
+  localStorage.setItem('sm_seller_session', JSON.stringify({id:found.seller_id||found.id, password:found.password}));
   showApp();
 }
 
-function doSellerRegister(){
+async function doSellerRegister(){
   const shopName = document.getElementById('rShopName').value.trim();
   const ownerName = document.getElementById('rOwnerName').value.trim();
   const phone = document.getElementById('rPhone').value.trim();
@@ -455,16 +460,31 @@ function doSellerRegister(){
   const newSeller = {
     id: sellerId,
     shopName, ownerName, phone, category, password,
-    status: 'active', // Auto approve (admin can block later)
+    status: 'pending', // Admin se approval ka wait karo
     joinDate: new Date().toLocaleDateString('hi-IN'),
     commission: 5, // 5% commission to Sultan Mart
   };
-  sellers.push(newSeller);
-  saveSellers(sellers);
-  currentSeller = newSeller;
-  localStorage.setItem('sm_seller_session', JSON.stringify({id:newSeller.id, password:newSeller.password}));
-  showToast('🎉 Welcome! Aapka Seller ID: '+sellerId, 'success');
-  showApp();
+  // Save to Supabase
+  const sbData = await sbFetch('sellers', 'POST', {
+    seller_id: sellerId,
+    shop_name: newSeller.shopName,
+    name: newSeller.ownerName,
+    phone: newSeller.phone,
+    categories: newSeller.category,
+    password: newSeller.password,
+    status: 'pending',
+    'Prefer': 'return=representation, resolution=ignore-duplicates'
+  });
+  showToast('✅ Registration ho gaya! Seller ID: '+sellerId+' — Admin approval ka wait karo.', 'success');
+  // Show pending message instead of app
+  const errEl = document.getElementById('loginErr');
+  errEl.textContent = '⏳ Aapka account registered ho gaya! Seller ID: '+sellerId+' — Admin se approval milne ke baad login kar sakte ho.';
+  errEl.style.display='block';
+  errEl.style.color='#f59e0b';
+  // Switch to login form
+  document.getElementById('regForm').style.display='none';
+  document.getElementById('loginForm').style.display='block';
+  document.getElementById('lSellerId').value = sellerId;
 }
 
 function doLogout(){
@@ -485,6 +505,21 @@ function doLogout(){
   if(found && found.status==='active'){
     currentSeller = found;
     window.addEventListener('DOMContentLoaded', showApp);
+  } else if(found && (found.status==='pending'||found.status==='blocked')) {
+    // Keep session but show status message after DOM loads
+    window.addEventListener('DOMContentLoaded', async ()=>{
+      // Re-check status from Supabase
+      const dbData = await sbFetch('sellers?seller_id=eq.'+encodeURIComponent(session.id));
+      if(dbData && dbData.length > 0){
+        const s = dbData[0];
+        if(s.status==='active'){ currentSeller=s; localStorage.setItem('sm_seller_session',JSON.stringify({id:s.seller_id||s.id,password:s.password})); showApp(); return; }
+        const errEl = document.getElementById('loginErr');
+        if(s.status==='pending'){ errEl.textContent='⏳ Aapka account admin approval ka wait kar raha hai. Jald hi approve kiya jayega!'; errEl.style.color='#f59e0b'; }
+        else { errEl.textContent='❌ Aapka account block kar diya gaya hai. Admin se contact karein: 9559868648'; errEl.style.color='#ef4444'; }
+        errEl.style.display='block';
+      }
+      localStorage.removeItem('sm_seller_session');
+    });
   } else {
     localStorage.removeItem('sm_seller_session');
   }
