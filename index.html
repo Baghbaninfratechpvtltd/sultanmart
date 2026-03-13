@@ -136,24 +136,26 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
 
 /* Mobile app container */
 .app-container{max-width:480px;width:100%;margin:0 auto;position:relative;background:var(--bg);min-height:100vh}
-/* Desktop mode mein bhi mobile layout force karo */
+/* Desktop - full width */
 @media(min-width:900px){
-  .app-container{max-width:480px;box-shadow:0 0 40px rgba(0,0,0,.15)}
+  .app-container{max-width:100%;box-shadow:none}
   body{background:#e8edf5}
-  .hdr{max-width:480px}
-  .bottom-nav{max-width:480px!important;position:fixed!important;left:50%!important;transform:translateX(-50%)!important}
-  .pgrid{grid-template-columns:repeat(3,1fr)!important}
-  .search-results{grid-template-columns:repeat(3,1fr)!important}
-  .banner-wrap{height:160px}
-  .page{padding-bottom:70px}
-  .modal-bg .bottom-sheet{max-width:480px;margin:auto;border-radius:20px 20px 0 0}
+  .hdr{max-width:100%}
+  .bottom-nav{max-width:100%;position:sticky;bottom:0}
+  .pgrid{grid-template-columns:repeat(5,1fr)!important}
+  .search-results{grid-template-columns:repeat(5,1fr)!important}
+  .banner-wrap{height:200px}
+  .cat-scroll{justify-content:flex-start}
+  .page{padding-bottom:0}
+  .modal-bg .bottom-sheet{max-width:520px;margin:auto;border-radius:16px;margin-bottom:20px}
+  .modal-bg{align-items:center}
 }
 
-/* Tablet bhi mobile layout */
+/* Tablet */
 @media(min-width:600px) and (max-width:899px){
-  .app-container{max-width:480px}
-  .pgrid{grid-template-columns:repeat(3,1fr)!important}
-  .search-results{grid-template-columns:repeat(3,1fr)!important}
+  .app-container{max-width:100%}
+  .pgrid{grid-template-columns:repeat(4,1fr)!important}
+  .search-results{grid-template-columns:repeat(4,1fr)!important}
 }
 a{text-decoration:none;color:inherit}
 button{cursor:pointer;font-family:'Hind',sans-serif;border:none}
