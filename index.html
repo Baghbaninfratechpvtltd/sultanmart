@@ -2,9 +2,8 @@
 <html lang="hi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#1a6dd4">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sultan Mart">
 <meta name="description" content="Bharatganj Prayagraj ki No.1 Grocery Shop">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
@@ -35,14 +34,14 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
 /* ── MODERN SIDEBAR ── */
 .desk-sidebar{display:none!important;visibility:hidden!important;width:0!important;overflow:hidden!important}
 @media(min-width:900px){
-  .pimg-wrap{height:140px!important;background:linear-gradient(135deg,#f0f4ff,#e8f0fe)}
-  .pcard{font-size:13px;overflow:hidden}
-  .pinfo{padding:5px 6px 4px}
-  .pname{font-size:13px;height:32px;margin:2px 0 3px}
+  .pimg-wrap{height:160px!important;background:linear-gradient(135deg,#f0f4ff,#e8f0fe)}
+  .pcard{font-size:12px;overflow:hidden}
+  .pinfo{padding:6px 8px 8px}
+  .pname{font-size:12px;height:auto;min-height:0;margin:2px 0 3px;-webkit-line-clamp:2;white-space:normal}
   .pbrand{font-size:11px;display:block}
   .pnow{font-size:14px}
   .price-row{margin:2px 0}
-  .padd-btn{padding:5px;font-size:12px}
+  .padd-btn{padding:6px;font-size:12px}
   .desk-sidebar{
     display:none!important;flex-direction:column;width:0px;flex-shrink:0;
     background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);
@@ -136,10 +135,13 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
 
 /* Mobile app container */
 .app-container{max-width:480px;width:100%;margin:0 auto;position:relative;background:var(--bg);min-height:100vh}
-/* Desktop - full width */
 @media(min-width:900px){
   .app-container{max-width:100%;box-shadow:none}
   body{background:#e8edf5}
+}
+
+/* Desktop: show full width, no mobile restrictions */
+@media(min-width:900px){
   .hdr{max-width:100%}
   .bottom-nav{max-width:100%;position:sticky;bottom:0}
   .pgrid{grid-template-columns:repeat(5,1fr)!important}
@@ -154,8 +156,8 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
 /* Tablet */
 @media(min-width:600px) and (max-width:899px){
   .app-container{max-width:100%}
-  .pgrid{grid-template-columns:repeat(4,1fr)!important}
-  .search-results{grid-template-columns:repeat(4,1fr)!important}
+  .pgrid{grid-template-columns:repeat(5,1fr)!important}
+  .search-results{grid-template-columns:repeat(5,1fr)!important}
 }
 a{text-decoration:none;color:inherit}
 button{cursor:pointer;font-family:'Hind',sans-serif;border:none}
@@ -433,26 +435,6 @@ img{object-fit:cover;max-width:100%}
 
 /* ── WISHLIST ── */
 .wishlist-page{padding:10px}
-
-/* PWA Standalone mode - HAMESHA mobile layout */
-@media all and (display-mode: standalone) {
-  .app-container{max-width:480px!important;width:100%!important}
-  .pgrid{grid-template-columns:repeat(3,1fr)!important}
-  .search-results{grid-template-columns:repeat(3,1fr)!important}
-  .hdr{max-width:480px!important}
-  .bottom-nav{max-width:480px!important;position:fixed!important}
-  .banner-wrap{height:160px!important}
-  .page{padding-bottom:70px!important}
-  body{background:var(--bg)!important}
-}
-
-/* JS se body class add hogi - extra safety */
-body.pwa-mode .app-container{max-width:480px!important;width:100%!important}
-body.pwa-mode .pgrid{grid-template-columns:repeat(3,1fr)!important}
-body.pwa-mode .search-results{grid-template-columns:repeat(3,1fr)!important}
-body.pwa-mode .hdr{max-width:480px!important}
-body.pwa-mode .bottom-nav{max-width:480px!important;position:fixed!important}
-body.pwa-mode body{background:var(--bg)!important}
 </style>
 </head>
 <body>
@@ -1809,7 +1791,7 @@ function openInv(id){
 }
 function printInv(){
   const w=window.open('','_blank');
-  w.document.write('<html><head><title>Invoice - Sultan Mart</title><style>body{font-family:Arial;padding:20px;font-size:12px}.inv-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #ccc}.inv-total{font-weight:700;font-size:14px;border-top:2px solid #333;padding-top:6px}h2{color:#1a6dd4;margin:0}</style></head><body>');
+  w.document.write('<html><head><title>Invoice — Sultan Mart</title><style>body{font-family:Arial;padding:20px;font-size:12px}.inv-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #ccc}.inv-total{font-weight:700;font-size:14px;border-top:2px solid #333;padding-top:6px}h2{color:#1a6dd4;margin:0}</style></head><body>');
   w.document.write(document.getElementById('invoiceBody').innerHTML);
   w.document.write('</body></html>');w.document.close();w.print();
 }
@@ -2328,18 +2310,5 @@ async function loadBannersFromDB(){
 
 <!-- SELLER REGISTRATION MODAL -->
 
-
-<script>
-(function(){
-  function applyPWA(){
-    var standalone = window.matchMedia('(display-mode: standalone)').matches
-                  || window.navigator.standalone === true;
-    if(standalone) document.body.classList.add('pwa-mode');
-    else document.body.classList.remove('pwa-mode');
-  }
-  applyPWA();
-  window.matchMedia('(display-mode: standalone)').addEventListener('change', applyPWA);
-})();
-</script>
 </body>
 </html>
