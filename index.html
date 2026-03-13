@@ -1809,10 +1809,9 @@ function openInv(id){
 }
 function printInv(){
   const w=window.open('','_blank');
-  w.document.write('<html><head><title>Invoice — Sultan Mart</title><style>body{font-family:Arial;padding:20px;font-size:12px}.inv-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #ccc}.inv-total{font-weight:700;font-size:14px;border-top:2px solid #333;padding-top:6px}h2{color:#1a6dd4;margin:0}</style></head><body>');
+  w.document.write('<html><head><title>Invoice - Sultan Mart</title><style>body{font-family:Arial;padding:20px;font-size:12px}.inv-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #ccc}.inv-total{font-weight:700;font-size:14px;border-top:2px solid #333;padding-top:6px}h2{color:#1a6dd4;margin:0}</style></head><body>');
   w.document.write(document.getElementById('invoiceBody').innerHTML);
-  w.document.write('
-</body></html>');w.document.close();w.print();
+  w.document.write('</body></html>');w.document.close();w.print();
 }
 
 // ===== ACCOUNT =====
