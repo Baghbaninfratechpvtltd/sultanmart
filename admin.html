@@ -976,12 +976,12 @@ async function loadAllOrdersWithDB(){
     const dbOrders = await getAllOrdersDB();
     if(dbOrders && dbOrders.length > 0){
       ALL_ORDERS = dbOrders.map(o=>{
-        const items = Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]');
-        // replace_request DB se parse karo
+        const items = Array.isArray(o.items) ? o.items : (()=>{try{return JSON.parse(o.items||'[]')}catch(e){return []}})();
+        // replace_request parse karo
         let replaceRequest = null;
         if(o.replace_request){
           try{ replaceRequest = typeof o.replace_request==='string' ? JSON.parse(o.replace_request) : o.replace_request; }
-          catch(e){ replaceRequest = {reason: o.replace_request, date: ''}; }
+          catch(e){ replaceRequest = {reason:o.replace_request,date:''}; }
         }
         return {
           id: o.order_number,
@@ -1338,7 +1338,6 @@ function renderOrdersTable(){
           ${o.status==='placed'?`<button class="btn btn-confirm btn-sm" onclick="updateStatus('${o.id}','confirm')">✅ Confirm</button>`:''}
           ${o.status==='confirm'?`<button class="btn btn-ship btn-sm" onclick="updateStatus('${o.id}','delivery')">🚚 Ship</button>`:''}
           ${o.status==='delivery'?`<button class="btn btn-deliver btn-sm" onclick="updateStatus('${o.id}','delivered')">📬 Delivered</button>`:''}
-          ${o.replaceRequest&&o.status==='delivered'?`<button class="btn btn-sm" style="background:rgba(168,85,247,.2);color:#d8b4fe;border:1px solid rgba(168,85,247,.3)" onclick="updateStatus('${o.id}','replaced')">🔄 Replace</button>`:''}
           ${(o.status==='placed'||o.status==='confirm')?`<button class="btn btn-cancel btn-sm" onclick="updateStatus('${o.id}','cancelled')">❌</button>`:''}
         </div>
       </td>
@@ -1346,20 +1345,24 @@ function renderOrdersTable(){
 }
 
 async function updateStatus(id, newStatus){
-  const idx = ALL_ORDERS.findIndex(x=>x.id===id);
-  if(idx<0) return;
-  ALL_ORDERS[idx].status = newStatus;
+  const idx=ALL_ORDERS.findIndex(o=>o.id===id);
+  if(idx<0)return;
+  ALL_ORDERS[idx].status=newStatus;
   if(!ALL_ORDERS[idx].statusHistory) ALL_ORDERS[idx].statusHistory=[];
-  ALL_ORDERS[idx].statusHistory.push({s:newStatus, t:new Date().toLocaleString('hi-IN')});
-  localStorage.setItem('sm_all_orders', JSON.stringify(ALL_ORDERS));
+  ALL_ORDERS[idx].statusHistory.push({s:newStatus,t:new Date().toLocaleString('hi-IN')});
+  saveAllOrders();
   renderOrdersTable();
   checkNewOrders();
-  closeModal('modal-order');
-  const labels={confirm:'✅ Confirmed!',delivery:'🚚 Shipped!',delivered:'🎉 Delivered!',cancelled:'❌ Cancelled!',replaced:'🔄 Replace Approved!'};
-  showToast(labels[newStatus]||'✅ Updated!','success');
+  const labels={confirm:'✅ Order Confirm!',delivery:'🚚 Out for Delivery!',delivered:'🎉 Delivered!',cancelled:'❌ Order Cancelled',replaced:'🔄 Replace Approved!'};
+  showToast(labels[newStatus]||'Updated!','success');
+  // DB mein save karo
   try{
-    await updateOrderDB(id, {status:newStatus, updated_at:new Date().toISOString()});
-  }catch(e){ showToast('⚠️ DB save failed','error'); }
+    const dbBody={status:newStatus, updated_at:new Date().toISOString()};
+    await updateOrderDB(id, dbBody);
+    console.log('✅ Status saved to DB:', id, newStatus);
+  }catch(e){
+    console.log('❌ DB save failed:', e);
+  }
 }
 
 
@@ -1553,20 +1556,11 @@ function viewOrder(id){
       <div style="display:flex;justify-content:space-between;padding:8px 0;font-size:15px;font-weight:700;border-top:1px solid var(--border);margin-top:4px"><span>TOTAL</span><span style="color:var(--primary)">₹${o.total}</span></div>
     </div>
     ${o.status!=='delivered'&&o.status!=='cancelled'?`
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
-      ${o.status==='placed'?`<button class="btn btn-confirm" onclick="updateStatus('${o.id}','confirm')">✅ Confirm Order</button>`:''}
-      ${o.status==='confirm'?`<button class="btn btn-ship" onclick="updateStatus('${o.id}','delivery')">🚚 Ship Karo</button>`:''}
-      ${o.status==='delivery'?`<button class="btn btn-deliver" onclick="updateStatus('${o.id}','delivered')">📬 Mark Delivered</button>`:''}
-      ${(o.status==='placed'||o.status==='confirm')?`<button class="btn btn-cancel" onclick="updateStatus('${o.id}','cancelled')">❌ Cancel Karo</button>`:''}
-    </div>`:''}
-    ${o.status==='delivered'&&o.replaceRequest?`
-    <div style="background:rgba(168,85,247,.1);border:1px solid rgba(168,85,247,.3);border-radius:10px;padding:14px;margin-top:12px">
-      <div style="color:#d8b4fe;font-weight:700;font-size:14px;margin-bottom:6px">🔄 Replace Request</div>
-      <div style="color:#94a3b8;font-size:13px;margin-bottom:10px">Reason: ${o.replaceRequest.reason} — ${o.replaceRequest.date}</div>
-      <div style="display:flex;gap:8px">
-        <button class="btn" style="flex:1;background:rgba(168,85,247,.2);color:#d8b4fe;border:1px solid rgba(168,85,247,.4)" onclick="updateStatus('${o.id}','replaced')">🔄 Approve Karo</button>
-        <button class="btn btn-cancel" style="flex:1" onclick="updateStatus('${o.id}','cancelled')">❌ Reject Karo</button>
-      </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      ${o.status==='placed'?`<button class="btn btn-confirm" onclick="updateStatus('${o.id}','confirm');closeModal('modal-order')">✅ Confirm Order</button>`:''}
+      ${o.status==='confirm'?`<button class="btn btn-ship" onclick="updateStatus('${o.id}','delivery');closeModal('modal-order')">🚚 Ship Karo</button>`:''}
+      ${o.status==='delivery'?`<button class="btn btn-deliver" onclick="updateStatus('${o.id}','delivered');closeModal('modal-order')">📬 Mark Delivered</button>`:''}
+      ${(o.status==='placed'||o.status==='confirm')?`<button class="btn btn-cancel" onclick="updateStatus('${o.id}','cancelled');closeModal('modal-order')">❌ Cancel Karo</button>`:''}
     </div>`:''}`;
   currentViewOrderId = id;
   openModal('modal-order');
