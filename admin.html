@@ -976,8 +976,13 @@ async function loadAllOrdersWithDB(){
     const dbOrders = await getAllOrdersDB();
     if(dbOrders && dbOrders.length > 0){
       ALL_ORDERS = dbOrders.map(o=>{
-        // Merge DB order with localStorage format
         const items = Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]');
+        // replace_request DB se parse karo
+        let replaceRequest = null;
+        if(o.replace_request){
+          try{ replaceRequest = typeof o.replace_request==='string' ? JSON.parse(o.replace_request) : o.replace_request; }
+          catch(e){ replaceRequest = {reason: o.replace_request, date: ''}; }
+        }
         return {
           id: o.order_number,
           dbId: o.id,
@@ -987,7 +992,10 @@ async function loadAllOrdersWithDB(){
           total: o.total,
           status: o.status || 'placed',
           payment: o.payment_method,
+          utr: o.utr || '',
           assignedTo: o.assigned_to || '',
+          cancelReason: o.cancel_reason || '',
+          replaceRequest: replaceRequest,
           customer: {name: o.customer_name, phone: o.customer_phone},
           addr: o.customer_address ? (()=>{try{return JSON.parse(o.customer_address)}catch(e){return {addr:o.customer_address}}})() : {}
         };
