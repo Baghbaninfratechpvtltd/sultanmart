@@ -2,7 +2,7 @@
 <html lang="hi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=1200, initial-scale=0.5, user-scalable=yes">
 <title>Sultan Mart — Admin Dashboard</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Hind:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -215,9 +215,23 @@ tr:hover td{background:rgba(255,255,255,.02)}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ===== FORCE DESKTOP — Mobile mode block ===== */
+/* Admin hamesha desktop layout mein rahega */
+body{min-width:900px!important}
+.sidebar{transform:none!important;position:fixed!important}
+.main{margin-left:230px!important}
+.stats-grid{grid-template-columns:repeat(4,1fr)!important}
 </style>
 <link rel="icon" href="/icon-192.png">
-</head>
+<script>
+// Admin site — hamesha desktop mode force karo
+(function(){
+  var vp = document.querySelector('meta[name=viewport]');
+  if(vp) vp.setAttribute('content','width=1200,initial-scale=0.4,user-scalable=yes');
+  document.documentElement.style.minWidth = '900px';
+})();
+</script>
 <body>
 
 <!-- LOGIN SCREEN -->
