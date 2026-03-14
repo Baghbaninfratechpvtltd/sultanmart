@@ -33,7 +33,7 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
 
 
 /* ── MODERN SIDEBAR ── */
-.desk-sidebar{display:none}
+.desk-sidebar{display:none!important;width:0!important;overflow:hidden!important;position:absolute!important;visibility:hidden!important}
 @media(min-width:900px){
   .pimg-wrap{height:140px!important;background:linear-gradient(135deg,#f0f4ff,#e8f0fe)}
   .pcard{font-size:13px;overflow:hidden}
@@ -136,8 +136,7 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
 .app-container{max-width:480px;width:100%;margin:0 auto;position:relative;background:var(--bg);min-height:100vh}
 /* Desktop - full width */
 @media(min-width:900px){
-  .desktop-wrap{display:flex!important;flex-direction:row!important}
-  .desk-sidebar{display:flex!important;width:220px!important;flex-shrink:0}
+  .desktop-wrap{display:block!important}
   .app-container{max-width:100%;box-shadow:none;background:var(--bg)}
   body{background:#f1f3f6}
   .hdr{max-width:100%;position:sticky;top:0}
