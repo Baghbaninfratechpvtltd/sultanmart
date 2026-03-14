@@ -45,52 +45,50 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
   .padd-btn{padding:5px;font-size:12px}
   .desk-sidebar{
     display:none!important;flex-direction:column;width:0px;flex-shrink:0;
-    background:linear-gradient(180deg,#0f172a 0%,#1e293b 100%);
-    color:#fff;position:sticky;top:0;height:100vh;overflow-y:auto;
-    border-right:1px solid rgba(255,255,255,.06);
+    background:#fff;
+    color:#212121;position:sticky;top:0;height:100vh;overflow-y:auto;
+    border-right:1px solid #e0e0e0;box-shadow:2px 0 8px rgba(0,0,0,.06);
   }
   /* Logo area */
   .desk-sidebar .ds-logo{
-    padding:22px 18px 18px;
-    background:linear-gradient(135deg,rgba(26,109,212,.4),rgba(15,79,163,.2));
-    border-bottom:1px solid rgba(255,255,255,.07);
-    margin-bottom:10px;
+    padding:16px 16px 14px;
+    background:var(--primary);
+    border-bottom:1px solid rgba(255,255,255,.15);
+    margin-bottom:8px;
   }
-  .desk-sidebar .ds-logo-icon{font-size:32px;margin-bottom:6px;display:block}
+  .desk-sidebar .ds-logo-icon{font-size:28px;margin-bottom:4px;display:block}
   .desk-sidebar .ds-logo-name{
-    font-family:'Baloo 2',cursive;font-size:19px;font-weight:800;
+    font-family:'Baloo 2',cursive;font-size:17px;font-weight:800;
     color:#fff;line-height:1.1;display:block;
   }
   .desk-sidebar .ds-logo-sub{
-    font-size:10px;color:#94a3b8;margin-top:3px;display:block;
+    font-size:10px;color:rgba(255,255,255,.75);margin-top:2px;display:block;
   }
   .desk-sidebar .ds-logo-badge{
-    display:inline-block;background:rgba(34,197,94,.2);color:#4ade80;
-    border:1px solid rgba(34,197,94,.3);border-radius:20px;
-    font-size:9px;font-weight:700;padding:2px 8px;margin-top:6px;
+    display:inline-block;background:rgba(255,255,255,.2);color:#fff;
+    border:1px solid rgba(255,255,255,.3);border-radius:20px;
+    font-size:9px;font-weight:700;padding:2px 8px;margin-top:4px;
   }
   /* Nav section label */
   .desk-sidebar .ds-label{
-    font-size:9px;font-weight:700;color:#475569;
+    font-size:9px;font-weight:700;color:#9e9e9e;
     text-transform:uppercase;letter-spacing:1.5px;
-    padding:14px 18px 6px;
+    padding:12px 16px 4px;
   }
   /* Nav item */
   .desk-sidebar .ds-nav{padding:0 10px}
   .desk-sidebar .ds-item{
     display:flex;align-items:center;gap:10px;
-    padding:10px 12px;border-radius:10px;cursor:pointer;
-    color:#94a3b8;font-size:13px;font-weight:500;
-    transition:.2s;margin-bottom:2px;position:relative;
+    padding:9px 12px;border-radius:8px;cursor:pointer;
+    color:#555;font-size:13px;font-weight:500;
+    transition:.2s;margin-bottom:1px;position:relative;
   }
   .desk-sidebar .ds-item:hover{
-    background:rgba(255,255,255,.06);color:#e2e8f0;
-    transform:translateX(3px);
+    background:#f0f4ff;color:var(--primary);
   }
   .desk-sidebar .ds-item.on{
-    background:linear-gradient(90deg,rgba(26,109,212,.35),rgba(26,109,212,.1));
-    color:#60a5fa;font-weight:700;
-    border-left:3px solid #3b82f6;
+    background:#e8f0fe;color:var(--primary);font-weight:700;
+    border-left:3px solid var(--primary);
   }
   .desk-sidebar .ds-item.on::before{
     content:'';position:absolute;left:0;top:25%;bottom:25%;
@@ -106,24 +104,24 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
   .desk-sidebar .ds-divider{height:1px;background:rgba(255,255,255,.06);margin:8px 16px}
   /* Contact card */
   .desk-sidebar .ds-contact{
-    margin-top:auto;padding:14px 16px;
-    background:rgba(255,255,255,.04);
-    border-top:1px solid rgba(255,255,255,.06);
+    margin-top:auto;padding:12px 14px;
+    background:#fafafa;
+    border-top:1px solid #e0e0e0;
   }
   .desk-sidebar .ds-contact-card{
-    background:linear-gradient(135deg,rgba(26,109,212,.3),rgba(15,79,163,.2));
-    border:1px solid rgba(59,130,246,.2);
+    background:#f0f4ff;
+    border:1px solid #c5d8ff;
     border-radius:10px;padding:12px;
   }
-  .desk-sidebar .ds-contact-title{font-size:10px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
-  .desk-sidebar .ds-contact-item{display:flex;align-items:center;gap:6px;font-size:11px;color:#94a3b8;margin-bottom:5px}
+  .desk-sidebar .ds-contact-title{font-size:10px;color:#9e9e9e;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+  .desk-sidebar .ds-contact-item{display:flex;align-items:center;gap:6px;font-size:11px;color:#555;margin-bottom:5px}
   .desk-sidebar .ds-contact-item:last-child{margin-bottom:0}
-  .desk-sidebar .ds-contact a{color:#60a5fa;font-weight:600}
+  .desk-sidebar .ds-contact a{color:var(--primary);font-weight:600}
   /* Delivery badge in sidebar */
   .desk-sidebar .ds-delivery{
-    margin:0 10px 8px;background:rgba(34,197,94,.1);
-    border:1px solid rgba(34,197,94,.2);border-radius:8px;
-    padding:8px 10px;font-size:11px;color:#4ade80;
+    margin:0 10px 8px;background:#e8f5e9;
+    border:1px solid #a5d6a7;border-radius:8px;
+    padding:8px 10px;font-size:11px;color:#2e7d32;font-weight:600;
     display:flex;align-items:center;gap:6px;
   }
 }
@@ -138,12 +136,8 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
 .app-container{max-width:480px;width:100%;margin:0 auto;position:relative;background:var(--bg);min-height:100vh}
 /* Desktop - full width */
 @media(min-width:900px){
-  /* Desktop - Flipkart jaisa */
   .desktop-wrap{display:flex!important;flex-direction:row!important}
-  .desk-sidebar{display:flex!important;flex-direction:column;width:220px;flex-shrink:0;
-    background:linear-gradient(180deg,#0f172a,#1e293b);color:#fff;
-    position:sticky;top:0;height:100vh;overflow-y:auto;
-    border-right:1px solid rgba(255,255,255,.08)}
+  .desk-sidebar{display:flex!important;width:220px!important;flex-shrink:0}
   .app-container{max-width:100%;box-shadow:none;background:var(--bg)}
   body{background:#f1f3f6}
   .hdr{max-width:100%;position:sticky;top:0}
@@ -156,8 +150,7 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
   .sec{padding:0 16px}
   .ostrip{margin:0 16px 10px;border-radius:8px}
   .pimg-wrap{height:180px}
-  .hdr-top{padding:12px 20px}
-  .modal-bg .bottom-sheet{max-width:560px;margin:auto;border-radius:16px;margin-bottom:20px}
+  .modal-bg .bottom-sheet{max-width:540px;margin:auto;border-radius:16px;margin-bottom:20px}
   .modal-bg{align-items:center}
 }
 
@@ -444,7 +437,7 @@ img{object-fit:cover;max-width:100%}
 /* ── WISHLIST ── */
 .wishlist-page{padding:10px}
 
-/* PWA App mode - Mobile layout force */
+/* PWA App - hamesha mobile */
 @media all and (display-mode: standalone) {
   .desktop-wrap{display:block!important}
   .desk-sidebar{display:none!important}
@@ -961,7 +954,7 @@ const DEFAULT_AREAS = [
 ];
 
 function getAreas(){
-  const s = {};
+  const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
   return s.deliveryAreas || DEFAULT_AREAS;
 }
 
@@ -2030,7 +2023,7 @@ function updateDeskNav(p){
   const dcc = document.getElementById('deskCartCount');
   if(dcc){dcc.textContent=count;dcc.style.display=count?'inline':'none';}
   // Sync desktop logo
-  const s = {};
+  const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
   const dn = document.getElementById('deskLogoName');
   const ds = document.getElementById('deskLogoSub');
   if(dn && s.shopName){
@@ -2340,13 +2333,12 @@ async function loadBannersFromDB(){
 <script>
 (function(){
   function applyMode(){
-    var standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone===true;
-    if(standalone){ document.body.classList.add('pwa-mode'); document.body.classList.remove('desktop-mode'); }
-    else { document.body.classList.remove('pwa-mode'); }
+    var pwa=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+    if(pwa){document.body.classList.add('pwa-mode');}
+    else{document.body.classList.remove('pwa-mode');}
   }
   applyMode();
-  window.matchMedia('(display-mode: standalone)').addEventListener('change', applyMode);
-  window.addEventListener('resize', applyMode);
+  window.matchMedia('(display-mode: standalone)').addEventListener('change',applyMode);
 })();
 </script>
 </body>
