@@ -1657,7 +1657,6 @@ function getGPS(){
 async function syncOrderStatusFromAdmin(){
   if(!currentUser) return;
   try{
-    // Seedha Supabase DB se fresh status lo
     const res = await fetch(
       SUPABASE_URL + '/rest/v1/orders?customer_id=eq.' + encodeURIComponent(currentUser.id) + '&order=created_at.desc',
       { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
@@ -1665,15 +1664,39 @@ async function syncOrderStatusFromAdmin(){
     const dbOrders = await res.json();
     if(!dbOrders || !dbOrders.length) return;
     let changed = false;
+    const statusMsg = {
+      confirm:   '✅ Aapka order confirm ho gaya!',
+      delivery:  '🚚 Aapka order delivery pe aa gaya!',
+      delivered: '🎉 Aapka order deliver ho gaya!',
+      cancelled: '❌ Aapka order cancel ho gaya.',
+      replaced:  '🔄 Replace request approve ho gaya!',
+    };
     dbOrders.forEach(dbO => {
       const idx = orders.findIndex(o => o.id === dbO.order_number);
       if(idx >= 0){
+        // Status change check
         if(orders[idx].status !== dbO.status){
-          orders[idx].status = dbO.status;
+          const newStatus = dbO.status;
+          orders[idx].status = newStatus;
+          changed = true;
+          // Toast notification
+          if(statusMsg[newStatus]) showToast(statusMsg[newStatus]);
+        }
+        // replace_request sync
+        if(dbO.replace_request && !orders[idx].replaceRequest){
+          try{
+            orders[idx].replaceRequest = typeof dbO.replace_request==='string'
+              ? JSON.parse(dbO.replace_request) : dbO.replace_request;
+            changed = true;
+          }catch(e){}
+        }
+        // cancel_reason sync
+        if(dbO.cancel_reason && !orders[idx].cancelReason){
+          orders[idx].cancelReason = dbO.cancel_reason;
           changed = true;
         }
-        // deliveredAt save karo agar delivered hai
-        if(dbO.status === 'delivered' && !orders[idx].deliveredAt){
+        // deliveredAt
+        if(dbO.status==='delivered' && !orders[idx].deliveredAt){
           orders[idx].deliveredAt = dbO.updated_at || new Date().toISOString();
           changed = true;
         }
@@ -1695,6 +1718,77 @@ setInterval(async ()=>{
     await syncOrderStatusFromAdmin();
   }
 }, 8000);
+
+// ===== SUPABASE REALTIME — Status turant update =====
+let realtimeConnected = false;
+
+function connectRealtime(){
+  if(realtimeConnected || !currentUser) return;
+  try{
+    // Supabase Realtime WebSocket
+    const wsUrl = SUPABASE_URL.replace('https://', 'wss://') + '/realtime/v1/websocket?apikey=' + SUPABASE_KEY + '&vsn=1.0.0';
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      realtimeConnected = true;
+      // Orders table subscribe karo — sirf is customer ke orders
+      ws.send(JSON.stringify({
+        topic: 'realtime:public:orders:customer_id=eq.' + currentUser.id,
+        event: 'phx_join',
+        payload: { config: { broadcast: { self: true }, presence: { key: '' } } },
+        ref: '1'
+      }));
+    };
+
+    ws.onmessage = async (event) => {
+      try{
+        const msg = JSON.parse(event.data);
+        // Koi bhi change aaye to sync karo
+        if(msg.event === 'UPDATE' || msg.event === 'postgres_changes'){
+          const record = msg.payload?.data?.record || msg.payload?.record;
+          if(record && record.order_number){
+            const idx = orders.findIndex(o => o.id === record.order_number);
+            if(idx >= 0 && orders[idx].status !== record.status){
+              const oldStatus = orders[idx].status;
+              orders[idx].status = record.status;
+              if(record.status === 'delivered') orders[idx].deliveredAt = record.updated_at;
+              localStorage.setItem('sm_orders_'+currentUser.id, JSON.stringify(orders));
+              renderOrders();
+              // Customer ko notification dikhao
+              const statusMsg = {
+                confirm:   '✅ Aapka order confirm ho gaya!',
+                delivery:  '🚚 Aapka order delivery pe bhej diya gaya!',
+                delivered: '🎉 Aapka order deliver ho gaya!',
+                cancelled: '❌ Aapka order cancel ho gaya.',
+                replaced:  '🔄 Aapka replace request approve ho gaya!',
+              };
+              if(statusMsg[record.status]){
+                showToast(statusMsg[record.status]);
+              }
+            }
+          }
+        }
+      }catch(e){}
+    };
+
+    ws.onclose = () => {
+      realtimeConnected = false;
+      // 5 second baad reconnect karo
+      setTimeout(() => { if(currentUser) connectRealtime(); }, 5000);
+    };
+
+    ws.onerror = () => { realtimeConnected = false; };
+
+  }catch(e){
+    console.log('Realtime connect failed:', e);
+  }
+}
+
+// Jab user login kare to realtime connect karo
+function startRealtimeForUser(){
+  realtimeConnected = false;
+  connectRealtime();
+}
 
 function renderOrders(){
   if(!currentUser){document.getElementById('ordersContent').innerHTML=`<div class="empty-cart"><div class="empty-ico">📦</div><p>Login karein orders dekhne ke liye</p><button onclick="showPage('account')" style="margin-top:14px;background:var(--primary);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-weight:700">Login Karein</button></div>`;return;}
@@ -1932,16 +2026,28 @@ async function loginUser(u){
   try{
     const dbOrders = await getCustomerOrdersDB(u.id);
     if(dbOrders && dbOrders.length > 0){
-      orders = dbOrders.map(o=>({
-        id: o.order_number,
-        date: new Date(o.created_at).toLocaleDateString('hi-IN'),
-        time: new Date(o.created_at).toLocaleTimeString('hi-IN',{hour:'2-digit',minute:'2-digit'}),
-        items: o.items,
-        total: o.total,
-        status: o.status,
-        payment: o.payment_method,
-        addr: o.customer_address ? JSON.parse(o.customer_address) : {}
-      }));
+      orders = dbOrders.map(o=>{
+        let replaceRequest = null;
+        if(o.replace_request){
+          try{ replaceRequest = typeof o.replace_request==='string' ? JSON.parse(o.replace_request) : o.replace_request; }
+          catch(e){ replaceRequest = {reason: o.replace_request, date:''}; }
+        }
+        return {
+          id: o.order_number,
+          date: new Date(o.created_at).toLocaleDateString('hi-IN'),
+          time: new Date(o.created_at).toLocaleTimeString('hi-IN',{hour:'2-digit',minute:'2-digit'}),
+          items: Array.isArray(o.items) ? o.items : (()=>{try{return JSON.parse(o.items||'[]')}catch(e){return []}})(),
+          total: o.total,
+          status: o.status,
+          payment: o.payment_method,
+          utr: o.utr || '',
+          cancelReason: o.cancel_reason || '',
+          replaceRequest: replaceRequest,
+          deliveredAt: o.updated_at || null,
+          addr: o.customer_address ? (()=>{try{return JSON.parse(o.customer_address)}catch(e){return {}}})() : {}
+        };
+      });
+      localStorage.setItem('sm_orders_'+u.id, JSON.stringify(orders));
     } else {
       orders=JSON.parse(localStorage.getItem('sm_orders_'+u.id)||'[]');
     }
@@ -1949,6 +2055,8 @@ async function loginUser(u){
     orders=JSON.parse(localStorage.getItem('sm_orders_'+u.id)||'[]');
   }
   localStorage.setItem('sm_current',JSON.stringify(u));renderAccount();
+  // Realtime connect karo
+  startRealtimeForUser();
 }
 function doLogout(){currentUser=null;orders=[];localStorage.removeItem('sm_current');renderAccount();showToast('👋 Logout ho gaye!');}
 
@@ -2060,7 +2168,12 @@ function updateDeskNav(p){
 
 // ===== INIT =====
 const saved=localStorage.getItem('sm_current');
-if(saved){currentUser=JSON.parse(saved);orders=JSON.parse(localStorage.getItem('sm_orders_'+currentUser.id)||'[]');}
+if(saved){
+  currentUser=JSON.parse(saved);
+  orders=JSON.parse(localStorage.getItem('sm_orders_'+currentUser.id)||'[]');
+  // Pehle se logged in hai to realtime connect karo
+  setTimeout(()=>startRealtimeForUser(), 2000);
+}
 // Load shop settings
 (function loadSettings(){
   const s = JSON.parse(localStorage.getItem('sm_settings') || '{}');
