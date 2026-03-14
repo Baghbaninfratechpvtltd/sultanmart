@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#1a6dd4">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Sultan Mart">
 <meta name="description" content="Bharatganj Prayagraj ki No.1 Grocery Shop">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
@@ -144,7 +143,7 @@ body{font-family:'Hind','Noto Color Emoji',sans-serif;background:#e8edf5;color:v
 /* Desktop: show full width, no mobile restrictions */
 @media(min-width:900px){
   .hdr{max-width:100%}
-  .bottom-nav{max-width:100%;position:fixed;bottom:0;left:0;transform:none;width:100%}
+  .bottom-nav{max-width:100%;position:sticky;bottom:0}
   .pgrid{grid-template-columns:repeat(5,1fr)!important}
   .search-results{grid-template-columns:repeat(5,1fr)!important}
   .banner-wrap{height:200px}
@@ -867,18 +866,6 @@ async function initDB(){
   renderCategories();
   filterCat('all');
 
-  // DB se settings load karo (delivery areas etc)
-  try{
-    const settingsRes = await sbFetch('settings?key=eq.shop_settings');
-    if(settingsRes && settingsRes.length > 0){
-      window._dbSettings = typeof settingsRes[0].value === 'string' 
-        ? JSON.parse(settingsRes[0].value) 
-        : settingsRes[0].value;
-      // localStorage bhi update karo fallback ke liye
-      localStorage.setItem('sm_settings', JSON.stringify(window._dbSettings));
-    }
-  }catch(e){ console.log('Settings load failed:', e); }
-
   // Background mein DB se load karo
   try{
     const dbProds = await getProductsFromDB();
@@ -948,11 +935,6 @@ const DEFAULT_AREAS = [
 ];
 
 function getAreas(){
-  // Pehle DB settings check karo, phir localStorage fallback
-  try{
-    const dbSettings = window._dbSettings;
-    if(dbSettings && dbSettings.deliveryAreas) return dbSettings.deliveryAreas;
-  }catch(e){}
   const s = JSON.parse(localStorage.getItem('sm_settings')||'{}');
   return s.deliveryAreas || DEFAULT_AREAS;
 }
@@ -1669,20 +1651,18 @@ async function syncOrderStatusFromAdmin(){
       delivery:  '🚚 Aapka order delivery pe aa gaya!',
       delivered: '🎉 Aapka order deliver ho gaya!',
       cancelled: '❌ Aapka order cancel ho gaya.',
-      replaced:  '🔄 Replace request approve ho gaya!',
+      replaced:  '🔄 Replace approve ho gaya! Naya item bheja jayega.',
     };
     dbOrders.forEach(dbO => {
       const idx = orders.findIndex(o => o.id === dbO.order_number);
       if(idx >= 0){
-        // Status change check
+        // Status change — toast dikhao
         if(orders[idx].status !== dbO.status){
-          const newStatus = dbO.status;
-          orders[idx].status = newStatus;
+          if(statusMsg[dbO.status]) showToast(statusMsg[dbO.status]);
+          orders[idx].status = dbO.status;
           changed = true;
-          // Toast notification
-          if(statusMsg[newStatus]) showToast(statusMsg[newStatus]);
         }
-        // replace_request sync
+        // replace_request DB se sync karo
         if(dbO.replace_request && !orders[idx].replaceRequest){
           try{
             orders[idx].replaceRequest = typeof dbO.replace_request==='string'
@@ -1706,9 +1686,7 @@ async function syncOrderStatusFromAdmin(){
       localStorage.setItem('sm_orders_'+currentUser.id, JSON.stringify(orders));
       renderOrders();
     }
-  }catch(e){
-    console.log('DB sync failed:', e);
-  }
+  }catch(e){ console.log('DB sync failed:', e); }
 }
 
 // Auto sync every 15 seconds when on orders page
@@ -1719,84 +1697,13 @@ setInterval(async ()=>{
   }
 }, 8000);
 
-// ===== SUPABASE REALTIME — Status turant update =====
-let realtimeConnected = false;
-
-function connectRealtime(){
-  if(realtimeConnected || !currentUser) return;
-  try{
-    // Supabase Realtime WebSocket
-    const wsUrl = SUPABASE_URL.replace('https://', 'wss://') + '/realtime/v1/websocket?apikey=' + SUPABASE_KEY + '&vsn=1.0.0';
-    const ws = new WebSocket(wsUrl);
-
-    ws.onopen = () => {
-      realtimeConnected = true;
-      // Orders table subscribe karo — sirf is customer ke orders
-      ws.send(JSON.stringify({
-        topic: 'realtime:public:orders:customer_id=eq.' + currentUser.id,
-        event: 'phx_join',
-        payload: { config: { broadcast: { self: true }, presence: { key: '' } } },
-        ref: '1'
-      }));
-    };
-
-    ws.onmessage = async (event) => {
-      try{
-        const msg = JSON.parse(event.data);
-        // Koi bhi change aaye to sync karo
-        if(msg.event === 'UPDATE' || msg.event === 'postgres_changes'){
-          const record = msg.payload?.data?.record || msg.payload?.record;
-          if(record && record.order_number){
-            const idx = orders.findIndex(o => o.id === record.order_number);
-            if(idx >= 0 && orders[idx].status !== record.status){
-              const oldStatus = orders[idx].status;
-              orders[idx].status = record.status;
-              if(record.status === 'delivered') orders[idx].deliveredAt = record.updated_at;
-              localStorage.setItem('sm_orders_'+currentUser.id, JSON.stringify(orders));
-              renderOrders();
-              // Customer ko notification dikhao
-              const statusMsg = {
-                confirm:   '✅ Aapka order confirm ho gaya!',
-                delivery:  '🚚 Aapka order delivery pe bhej diya gaya!',
-                delivered: '🎉 Aapka order deliver ho gaya!',
-                cancelled: '❌ Aapka order cancel ho gaya.',
-                replaced:  '🔄 Aapka replace request approve ho gaya!',
-              };
-              if(statusMsg[record.status]){
-                showToast(statusMsg[record.status]);
-              }
-            }
-          }
-        }
-      }catch(e){}
-    };
-
-    ws.onclose = () => {
-      realtimeConnected = false;
-      // 5 second baad reconnect karo
-      setTimeout(() => { if(currentUser) connectRealtime(); }, 5000);
-    };
-
-    ws.onerror = () => { realtimeConnected = false; };
-
-  }catch(e){
-    console.log('Realtime connect failed:', e);
-  }
-}
-
-// Jab user login kare to realtime connect karo
-function startRealtimeForUser(){
-  realtimeConnected = false;
-  connectRealtime();
-}
-
 function renderOrders(){
   if(!currentUser){document.getElementById('ordersContent').innerHTML=`<div class="empty-cart"><div class="empty-ico">📦</div><p>Login karein orders dekhne ke liye</p><button onclick="showPage('account')" style="margin-top:14px;background:var(--primary);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-weight:700">Login Karein</button></div>`;return;}
   // SYNC: Admin ki taraf se update hua status customer ko dikhaao
   syncOrderStatusFromAdmin();
   if(!orders.length){document.getElementById('ordersContent').innerHTML=`<div class="empty-cart"><div class="empty-ico">📦</div><p style="font-size:16px;font-weight:700">Koi Order Nahi!</p><button onclick="showPage('home')" style="margin-top:14px;background:var(--primary);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-weight:700">Shopping Karein</button></div>`;return;}
   const steps=['placed','confirm','delivery','delivered'];
-  const sLabel={placed:'🆕 New',confirm:'✅ Confirmed',delivery:'🚚 Delivery',delivered:'🎉 Delivered',cancelled:'❌ Cancelled'};
+  const sLabel={placed:'🆕 New',confirm:'✅ Confirmed',delivery:'🚚 Delivery',delivered:'🎉 Delivered',cancelled:'❌ Cancelled',replaced:'🔄 Replaced'};
   document.getElementById('ordersContent').innerHTML=orders.map(o=>{
     const si=o.status==='cancelled'?-1:steps.indexOf(o.status);
     const fp=si<0?0:(si/(steps.length-1))*100;
@@ -1806,10 +1713,14 @@ function renderOrders(){
         <span class="ostatus s-${o.status||'placed'}">${sLabel[o.status]||o.status}</span>
       </div>
       <div class="oc-body">
-        ${o.status!=='cancelled'?`<div class="track-bar">
+        ${o.status!=='cancelled'&&o.status!=='replaced'?`<div class="track-bar">
           <div class="tbfill" style="width:${fp}%"></div>
           ${steps.map((s,i)=>`<div class="tstep"><div class="tdot ${i<si?'done':''} ${i===si?'cur':''}">${i<si?'✓':i+1}</div><div class="tlbl">${['Placed','Confirmed','Delivery','Delivered'][i]}</div></div>`).join('')}
-        </div>`:`<div style="background:#ffebee;color:var(--red);padding:8px;border-radius:6px;font-size:12px;margin-bottom:8px">❌ Cancelled — ${o.cancelReason||'—'}</div>`}
+        </div>`:''}
+        ${o.status==='cancelled'?`<div style="background:#ffebee;color:var(--red);padding:8px;border-radius:6px;font-size:12px;margin-bottom:8px">❌ Cancelled — ${o.cancelReason||'—'}</div>`:''}
+        ${o.status==='replaced'?`<div style="background:#f3e8ff;color:#7c3aed;padding:10px;border-radius:8px;font-size:12px;margin-bottom:8px;font-weight:600">🔄 Replace Approved! Naya item bheja jayega.</div>`:''}
+        ${o.replaceRequest&&o.status!=='replaced'?`<div style="background:#fdf4ff;border:1px solid #e9d5ff;padding:8px;border-radius:6px;font-size:12px;margin-bottom:8px;color:#6b21a8">🔄 Replace Request Bheji — Admin review kar raha hai<br><span style="font-size:11px;color:#9333ea">Reason: ${o.replaceRequest.reason}</span></div>`:''}
+
         ${o.items.slice(0,3).map(it=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:3px 0;border-bottom:1px dashed var(--border)"><span>${it.emoji} ${it.name} ×${it.qty}</span><span>₹${it.price*it.qty}</span></div>`).join('')}
         ${o.items.length>3?`<div style="font-size:11px;color:var(--text2);margin-top:4px">+${o.items.length-3} aur items...</div>`:''}
       </div>
@@ -1849,35 +1760,36 @@ function openCR(id,mode){
 async function submitCR(){
   if(!document.getElementById('crReason').value){showToast('❌ Reason select karein!');return;}
   const idx=orders.findIndex(x=>x.id===crOrderId);
-  if(idx>=0){
-    const reason = document.getElementById('crReason').value;
-    const note = document.getElementById('crNote').value;
-    if(crMode==='cancel'){
-      orders[idx].status='cancelled';
-      orders[idx].cancelReason=reason;
-      showToast('✅ Order cancel ho gaya!');
-    } else {
-      orders[idx].replaceRequest={reason:reason+(note?(' — '+note):''),date:new Date().toLocaleDateString()};
-      showToast('✅ Replace request bhej di!');
-    }
-    localStorage.setItem('sm_orders_'+currentUser.id,JSON.stringify(orders));
-    // Sync to localStorage for admin
-    const all=JSON.parse(localStorage.getItem('sm_all_orders')||'[]');
-    const ai=all.findIndex(x=>x.id===crOrderId);
-    if(ai>=0){
-      all[ai].status=orders[idx].status;
-      all[ai].cancelReason=orders[idx].cancelReason;
-      all[ai].replaceRequest=orders[idx].replaceRequest;
-    }
-    localStorage.setItem('sm_all_orders',JSON.stringify(all));
-    // DB mein save karo taaki admin ko real-time dikhega
-    try{
-      const dbBody = {status: orders[idx].status, updated_at: new Date().toISOString()};
-      if(crMode==='cancel') dbBody.cancel_reason = reason;
-      if(crMode==='replace') dbBody.replace_request = JSON.stringify(orders[idx].replaceRequest);
-      await sbFetch('orders?order_number=eq.'+encodeURIComponent(crOrderId), 'PATCH', dbBody);
-    }catch(e){ console.log('DB sync failed:', e); }
+  if(idx<0){closeModal('modal-cr');return;}
+  
+  const reason=document.getElementById('crReason').value;
+  const note=document.getElementById('crNote').value||'';
+  const fullReason=reason+(note?' — '+note:'');
+
+  if(crMode==='cancel'){
+    orders[idx].status='cancelled';
+    orders[idx].cancelReason=fullReason;
+    showToast('✅ Order cancel ho gaya!');
+  } else {
+    orders[idx].replaceRequest={reason:fullReason,date:new Date().toLocaleDateString('hi-IN')};
+    showToast('✅ Replace request bhej di! Admin approve karega.');
   }
+
+  // localStorage update
+  localStorage.setItem('sm_orders_'+currentUser.id,JSON.stringify(orders));
+
+  // Supabase DB mein save karo — admin ko turant dikhega
+  try{
+    const dbBody={updated_at:new Date().toISOString()};
+    if(crMode==='cancel'){
+      dbBody.status='cancelled';
+      dbBody.cancel_reason=fullReason;
+    } else {
+      dbBody.replace_request=JSON.stringify(orders[idx].replaceRequest);
+    }
+    await sbFetch('orders?order_number=eq.'+encodeURIComponent(crOrderId),'PATCH',dbBody);
+  }catch(e){console.log('DB save failed:',e);}
+
   closeModal('modal-cr');renderOrders();
 }
 
@@ -2026,28 +1938,16 @@ async function loginUser(u){
   try{
     const dbOrders = await getCustomerOrdersDB(u.id);
     if(dbOrders && dbOrders.length > 0){
-      orders = dbOrders.map(o=>{
-        let replaceRequest = null;
-        if(o.replace_request){
-          try{ replaceRequest = typeof o.replace_request==='string' ? JSON.parse(o.replace_request) : o.replace_request; }
-          catch(e){ replaceRequest = {reason: o.replace_request, date:''}; }
-        }
-        return {
-          id: o.order_number,
-          date: new Date(o.created_at).toLocaleDateString('hi-IN'),
-          time: new Date(o.created_at).toLocaleTimeString('hi-IN',{hour:'2-digit',minute:'2-digit'}),
-          items: Array.isArray(o.items) ? o.items : (()=>{try{return JSON.parse(o.items||'[]')}catch(e){return []}})(),
-          total: o.total,
-          status: o.status,
-          payment: o.payment_method,
-          utr: o.utr || '',
-          cancelReason: o.cancel_reason || '',
-          replaceRequest: replaceRequest,
-          deliveredAt: o.updated_at || null,
-          addr: o.customer_address ? (()=>{try{return JSON.parse(o.customer_address)}catch(e){return {}}})() : {}
-        };
-      });
-      localStorage.setItem('sm_orders_'+u.id, JSON.stringify(orders));
+      orders = dbOrders.map(o=>({
+        id: o.order_number,
+        date: new Date(o.created_at).toLocaleDateString('hi-IN'),
+        time: new Date(o.created_at).toLocaleTimeString('hi-IN',{hour:'2-digit',minute:'2-digit'}),
+        items: o.items,
+        total: o.total,
+        status: o.status,
+        payment: o.payment_method,
+        addr: o.customer_address ? JSON.parse(o.customer_address) : {}
+      }));
     } else {
       orders=JSON.parse(localStorage.getItem('sm_orders_'+u.id)||'[]');
     }
@@ -2055,8 +1955,6 @@ async function loginUser(u){
     orders=JSON.parse(localStorage.getItem('sm_orders_'+u.id)||'[]');
   }
   localStorage.setItem('sm_current',JSON.stringify(u));renderAccount();
-  // Realtime connect karo
-  startRealtimeForUser();
 }
 function doLogout(){currentUser=null;orders=[];localStorage.removeItem('sm_current');renderAccount();showToast('👋 Logout ho gaye!');}
 
@@ -2168,12 +2066,7 @@ function updateDeskNav(p){
 
 // ===== INIT =====
 const saved=localStorage.getItem('sm_current');
-if(saved){
-  currentUser=JSON.parse(saved);
-  orders=JSON.parse(localStorage.getItem('sm_orders_'+currentUser.id)||'[]');
-  // Pehle se logged in hai to realtime connect karo
-  setTimeout(()=>startRealtimeForUser(), 2000);
-}
+if(saved){currentUser=JSON.parse(saved);orders=JSON.parse(localStorage.getItem('sm_orders_'+currentUser.id)||'[]');}
 // Load shop settings
 (function loadSettings(){
   const s = JSON.parse(localStorage.getItem('sm_settings') || '{}');
