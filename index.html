@@ -1680,23 +1680,20 @@ async function syncOrderStatusFromAdmin(){
     });
     if(changed){
       localStorage.setItem('sm_orders_'+currentUser.id, JSON.stringify(orders));
-      // Sirf tab render karo jab koi modal/popup open na ho
-      if(!isSafeToRender()) return;
-      renderOrders();
+      // Koi modal open hai ya detail page hai to render mat karo
+      if(!anyModalOpen()) renderOrders();
     }
   }catch(e){ console.log('DB sync failed:', e); }
 }
 
-// Check karo ki page render karna safe hai ya nahi
-function isSafeToRender(){
-  // Koi bhi modal open hai to render mat karo
-  if(document.querySelector('.modal-bg.open')) return false;
-  // Product detail page open hai to render mat karo
-  if(document.getElementById('page-detail')?.classList.contains('on')) return false;
-  return true;
+// Check: koi bhi modal/popup open hai?
+function anyModalOpen(){
+  if(document.querySelector('.modal-bg.open')) return true;
+  if(document.getElementById('page-detail')?.classList.contains('on')) return true;
+  return false;
 }
 
-// Auto sync har 8 second — sirf orders page pe
+// Auto sync har 8 second
 setInterval(async ()=>{
   if(document.getElementById('page-orders')?.classList.contains('on')){
     await syncOrderStatusFromAdmin();
@@ -2138,14 +2135,14 @@ setInterval(async ()=>{
         payment: o.payment_method,
         addr: o.customer_address ? (()=>{try{return JSON.parse(o.customer_address)}catch(e){return {}}})() : {}
       }));
-      // Sirf tab render karo jab koi popup/modal open na ho
+      // Sirf tab render karo jab orders page open ho AUR koi modal open na ho
       const ordersPage = document.getElementById('page-orders');
-      if(ordersPage && ordersPage.classList.contains('on') && isSafeToRender()){
+      if(ordersPage && ordersPage.classList.contains('on') && !anyModalOpen()){
         renderOrders();
       }
     }
   }catch(e){}
-}, 8000);
+}, 15000);
 
 // Settings/Deals/Banners har 20 second mein refresh (admin ne kuch change kiya ho to)
 setInterval(async ()=>{
