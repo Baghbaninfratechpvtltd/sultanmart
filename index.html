@@ -1335,7 +1335,7 @@ function renderProducts(list){
     </div>`;
   }).join('');
 }
-function filterCat(cat, navEl){
+function filterCat(cat, navEl, silent){
   currentCat=cat;
   document.querySelectorAll('.ntab').forEach(el=>el.classList.remove('on'));
   if(navEl) navEl.classList.add('on');
@@ -1346,7 +1346,8 @@ function filterCat(cat, navEl){
   const titles={all:'🛍️ Saare Products','atta-chawal':'🌾 Atta & Chawal',dal:'🫘 Dal','tel-ghee':'🫙 Tel & Ghee',masale:'🌶️ Masale',sabzi:'🥦 Sabzi',dairy:'🥛 Dairy',snacks:'🍟 Snacks',puja:'🪔 Puja',sabun:'🧼 Sabun'};
   document.getElementById('prodTitle').textContent=titles[cat]||'Products';
   renderProducts(cat==='all'?PRODS:PRODS.filter(p=>p.cat===cat));
-  showPage('home');
+  // silent=true ho to showPage mat karo (auto refresh ke liye)
+  if(!silent) showPage('home');
 }
 
 // ===== SEARCH =====
@@ -1680,20 +1681,15 @@ async function syncOrderStatusFromAdmin(){
     });
     if(changed){
       localStorage.setItem('sm_orders_'+currentUser.id, JSON.stringify(orders));
-      // Koi modal open hai ya detail page hai to render mat karo
-      if(!anyModalOpen()) renderOrders();
+      // Koi modal open hai to render mat karo
+      if(!document.querySelector('.modal-bg.open')){
+        renderOrders();
+      }
     }
   }catch(e){ console.log('DB sync failed:', e); }
 }
 
-// Check: koi bhi modal/popup open hai?
-function anyModalOpen(){
-  if(document.querySelector('.modal-bg.open')) return true;
-  if(document.getElementById('page-detail')?.classList.contains('on')) return true;
-  return false;
-}
-
-// Auto sync har 8 second
+// Auto sync har 8 second — sirf orders page pe
 setInterval(async ()=>{
   if(document.getElementById('page-orders')?.classList.contains('on')){
     await syncOrderStatusFromAdmin();
@@ -2113,15 +2109,17 @@ setInterval(async ()=>{
     if(newProds && newProds.length > 0){
       DB_PRODUCTS = newProds;
       renderCategories();
-      // Current active category ko re-render karo
-      filterCat(currentCat || 'all');
+      // silent=true — showPage('home') nahi chalega
+      filterCat(currentCat || 'all', null, true);
     }
   }catch(e){}
 }, 30000);
 
-// Orders har 15 second mein refresh (sirf login hone par)
+// Orders har 15 second mein refresh
 setInterval(async ()=>{
   if(!currentUser) return;
+  // Koi modal open hai to skip karo
+  if(document.querySelector('.modal-bg.open')) return;
   try{
     const dbOrders = await getCustomerOrdersDB(currentUser.id);
     if(dbOrders && dbOrders.length > 0){
@@ -2135,9 +2133,8 @@ setInterval(async ()=>{
         payment: o.payment_method,
         addr: o.customer_address ? (()=>{try{return JSON.parse(o.customer_address)}catch(e){return {}}})() : {}
       }));
-      // Sirf tab render karo jab orders page open ho AUR koi modal open na ho
-      const ordersPage = document.getElementById('page-orders');
-      if(ordersPage && ordersPage.classList.contains('on') && !anyModalOpen()){
+      // Sirf orders page open ho tab render karo
+      if(document.getElementById('page-orders')?.classList.contains('on')){
         renderOrders();
       }
     }
