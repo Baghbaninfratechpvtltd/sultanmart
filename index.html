@@ -1656,13 +1656,11 @@ async function syncOrderStatusFromAdmin(){
     dbOrders.forEach(dbO => {
       const idx = orders.findIndex(o => o.id === dbO.order_number);
       if(idx >= 0){
-        // Status change — toast dikhao
         if(orders[idx].status !== dbO.status){
           if(statusMsg[dbO.status]) showToast(statusMsg[dbO.status]);
           orders[idx].status = dbO.status;
           changed = true;
         }
-        // replace_request DB se sync karo
         if(dbO.replace_request && !orders[idx].replaceRequest){
           try{
             orders[idx].replaceRequest = typeof dbO.replace_request==='string'
@@ -1670,12 +1668,10 @@ async function syncOrderStatusFromAdmin(){
             changed = true;
           }catch(e){}
         }
-        // cancel_reason sync
         if(dbO.cancel_reason && !orders[idx].cancelReason){
           orders[idx].cancelReason = dbO.cancel_reason;
           changed = true;
         }
-        // deliveredAt
         if(dbO.status==='delivered' && !orders[idx].deliveredAt){
           orders[idx].deliveredAt = dbO.updated_at || new Date().toISOString();
           changed = true;
@@ -1684,23 +1680,31 @@ async function syncOrderStatusFromAdmin(){
     });
     if(changed){
       localStorage.setItem('sm_orders_'+currentUser.id, JSON.stringify(orders));
+      // Sirf tab render karo jab koi modal/popup open na ho
+      if(!isSafeToRender()) return;
       renderOrders();
     }
   }catch(e){ console.log('DB sync failed:', e); }
 }
 
-// Auto sync every 15 seconds when on orders page
+// Check karo ki page render karna safe hai ya nahi
+function isSafeToRender(){
+  // Koi bhi modal open hai to render mat karo
+  if(document.querySelector('.modal-bg.open')) return false;
+  // Product detail page open hai to render mat karo
+  if(document.getElementById('page-detail')?.classList.contains('on')) return false;
+  return true;
+}
+
+// Auto sync har 8 second — sirf orders page pe
 setInterval(async ()=>{
-  if(document.getElementById('page-orders') && 
-     document.getElementById('page-orders').style.display !== 'none'){
+  if(document.getElementById('page-orders')?.classList.contains('on')){
     await syncOrderStatusFromAdmin();
   }
 }, 8000);
 
 function renderOrders(){
   if(!currentUser){document.getElementById('ordersContent').innerHTML=`<div class="empty-cart"><div class="empty-ico">📦</div><p>Login karein orders dekhne ke liye</p><button onclick="showPage('account')" style="margin-top:14px;background:var(--primary);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-weight:700">Login Karein</button></div>`;return;}
-  // SYNC: Admin ki taraf se update hua status customer ko dikhaao
-  syncOrderStatusFromAdmin();
   if(!orders.length){document.getElementById('ordersContent').innerHTML=`<div class="empty-cart"><div class="empty-ico">📦</div><p style="font-size:16px;font-weight:700">Koi Order Nahi!</p><button onclick="showPage('home')" style="margin-top:14px;background:var(--primary);color:#fff;border:none;padding:12px 24px;border-radius:8px;font-weight:700">Shopping Karein</button></div>`;return;}
   const steps=['placed','confirm','delivery','delivered'];
   const sLabel={placed:'🆕 New',confirm:'✅ Confirmed',delivery:'🚚 Delivery',delivered:'🎉 Delivered',cancelled:'❌ Cancelled',replaced:'🔄 Replaced'};
@@ -2134,9 +2138,9 @@ setInterval(async ()=>{
         payment: o.payment_method,
         addr: o.customer_address ? (()=>{try{return JSON.parse(o.customer_address)}catch(e){return {}}})() : {}
       }));
-      // Agar orders page open hai to refresh karo
+      // Sirf tab render karo jab koi popup/modal open na ho
       const ordersPage = document.getElementById('page-orders');
-      if(ordersPage && ordersPage.classList.contains('active')){
+      if(ordersPage && ordersPage.classList.contains('on') && isSafeToRender()){
         renderOrders();
       }
     }
