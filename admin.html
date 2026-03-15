@@ -596,8 +596,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
               <option value="confirm">Confirmed</option>
               <option value="delivery">Out for Delivery</option>
               <option value="delivered">Delivered</option>
-              <option value="replaced">🔄 Replace Approved</option>
               <option value="replace">🔄 Replace Request</option>
+              <option value="replaced">🔄 Replace Approved</option>
               <option value="cancelled">Cancelled</option>
             </select>
             <input type="date" id="btDate" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--card);color:var(--text)">
@@ -1205,7 +1205,6 @@ async function initDashboard(){
 }
 
 async function autoRefreshOrders(){
-  // SIRF DB SE - localStorage BILKUL NAHI
   try{
     const res = await fetch(
       SUPABASE_URL + '/rest/v1/orders?order=created_at.desc&limit=500',
@@ -1216,6 +1215,11 @@ async function autoRefreshOrders(){
       if(dbOrders && dbOrders.length > 0){
         ALL_ORDERS = dbOrders.map(o=>{
           const items = Array.isArray(o.items) ? o.items : (()=>{try{return JSON.parse(o.items||'[]')}catch(e){return []}})();
+          let replaceRequest = null;
+          if(o.replace_request){
+            try{ replaceRequest = typeof o.replace_request==='string' ? JSON.parse(o.replace_request) : o.replace_request; }
+            catch(e){ replaceRequest = {reason:o.replace_request, date:''}; }
+          }
           return {
             id: o.order_number,
             dbId: o.id,
@@ -1224,23 +1228,28 @@ async function autoRefreshOrders(){
             items, total: o.total,
             status: o.status || 'placed',
             payment: o.payment_method,
+            utr: o.utr || '',
             assignedTo: o.assigned_to || '',
             assigned_to: o.assigned_to || '',
+            cancelReason: o.cancel_reason || '',
+            replaceRequest: replaceRequest,
             customer: {name: o.customer_name, phone: o.customer_phone},
             addr: (()=>{try{return JSON.parse(o.customer_address)}catch(e){return {area:'Bharatganj'}}})()
           };
         });
-        // localStorage bhi update karo sync ke liye
         localStorage.setItem('sm_all_orders', JSON.stringify(ALL_ORDERS));
       }
     }
   }catch(e){ console.log('Refresh failed:', e); }
-  
+
   updateStats();
   renderRecentOrders();
   checkNewOrders();
-  
-  // Har open panel update karo
+
+  // Koi modal open hai to panels render mat karo — dropdown/modal band ho jayega
+  const modalOpen = document.querySelector('.modal-bg.open');
+  if(modalOpen) return;
+
   const activePanels = ['bulktrack','orders','analytics'];
   activePanels.forEach(p => {
     const el = document.getElementById('panel-'+p);
@@ -1250,7 +1259,6 @@ async function autoRefreshOrders(){
       if(p==='analytics') renderAnalytics();
     }
   });
-  console.log('🔄 DB se refresh:', new Date().toLocaleTimeString(), '| Total:', ALL_ORDERS.length, '| Delivered:', ALL_ORDERS.filter(o=>o.status==='delivered').length, '| Pending:', ALL_ORDERS.filter(o=>o.status==='delivery').length);
 }
 async function updateStats(){
   // DB se fresh data lo
@@ -2394,7 +2402,6 @@ function renderBulkTracking(){
   const dateFilter = document.getElementById('btDate').value;
   if(boyFilter) orders = orders.filter(o=>o.assignedTo===boyFilter || (o.statusHistory&&o.statusHistory.some(h=>h.by===boyFilter)));
   if(statusFilter === 'replace'){
-    // Replace request wale orders — delivered + replaceRequest hai
     orders = orders.filter(o=>o.replaceRequest && o.status==='delivered');
   } else if(statusFilter){
     orders = orders.filter(o=>o.status===statusFilter);
